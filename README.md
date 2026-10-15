@@ -1,29 +1,29 @@
-# 2026_Groep_2: Bittle add-on
+# 2026_Groep_2: Bittle-uitbreiding
 
-An add-on for [Bittle](https://www.petoi.com/pages/bittle-open-source-bionic-robot-dog), the open-source quadruped robot by Petoi.
+Een uitbreiding voor [Bittle](https://www.petoi.com/pages/bittle-open-source-bionic-robot-dog), de open-source vierpotige robot van Petoi.
 
 ## Teams
 
-The project is split across three teams. Each team owns one folder.
+Het project is verdeeld over drie teams. Elk team beheert één map.
 
-| Team | Folder | Scope |
+| Team | Map | Verantwoordelijkheid |
 | --- | --- | --- |
-| Hardware | [`hardware/`](hardware/) | Mechanical and electrical design of the add-on |
-| Software | [`software/`](software/) | Firmware and code that drives the add-on |
-| UI/UX | [`ui-ux/`](ui-ux/) | Design of the program's user interface |
+| Hardware | [`hardware/`](hardware/) | Mechanisch en elektrisch ontwerp van de uitbreiding |
+| Software | [`software/`](software/) | Firmware en code die de uitbreiding aanstuurt |
+| UI/UX | [`ui-ux/`](ui-ux/) | Ontwerp van de gebruikersinterface van het programma |
 
-## Working together
+## Samenwerken
 
-- Do not commit directly to `main`. Create a branch and open a pull request.
-- Name branches after your team and the work, for example `hardware/mount-bracket` or `software/sensor-driver`.
-- Ask someone from your own team to review a pull request before merging.
-- If a change affects another team's folder, ask someone from that team to review it too.
-- Use issues to track tasks and bugs. Label each issue with the team it belongs to.
+- Commit niet rechtstreeks op `main`. Maak een branch aan en open een pull request.
+- Geef branches de naam van je team en het werk, bijvoorbeeld `hardware/mount-bracket` of `software/sensor-driver`.
+- Vraag iemand van je eigen team om een pull request te reviewen voordat je merget.
+- Raakt een wijziging de map van een ander team? Vraag dan ook iemand van dat team om een review.
+- Gebruik issues om taken en bugs bij te houden. Label elk issue met het team waartoe het behoort.
 
-## Getting started
+## Aan de slag
 
 ```sh
 git clone https://github.com/UA-ProductDevelopment-TDD/2026_Groep_2.git
 cd 2026_Groep_2
-git checkout -b <team>/<short-description>
+git checkout -b <team>/<korte-beschrijving>
 ```
