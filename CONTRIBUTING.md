@@ -35,12 +35,10 @@ Deze handleiding legt stap voor stap uit hoe je werk toevoegt aan het project. J
 
 Dit doe je maar één keer.
 
-1. **Maak een GitHub-account** op [github.com](https://github.com) en geef je gebruikersnaam aan de beheerder van de repo. Je krijgt dan een uitnodiging per mail. Aanvaard die.
-2. **Installeer GitHub Desktop** via [desktop.github.com](https://desktop.github.com).
-   Op Linux bestaat er geen officiële versie. Gebruik daar de community-versie van [shiftkey/desktop](https://github.com/shiftkey/desktop).
-3. **Log in**: open GitHub Desktop en kies **Sign in to GitHub.com**.
-4. **Stel je naam in**: ga naar **File → Options → Git** (op Mac: **GitHub Desktop → Settings → Git**) en vul je naam en het e-mailadres van je GitHub-account in.
-5. **Haal de repo binnen**: kies **File → Clone repository**, zoek `UA-ProductDevelopment-TDD/2026_Groep_2`, kies een map op je computer en klik op **Clone**.
+1. **Installeer GitHub Desktop** via [desktop.github.com](https://desktop.github.com).
+2. **Log in**: open GitHub Desktop en kies **Sign in to GitHub.com**.
+3. **Stel je naam in**: ga naar **File → Options → Git** (op Mac: **GitHub Desktop → Settings → Git**) en vul je naam en het e-mailadres van je GitHub-account in.
+4. **Haal de repo binnen**: kies **File → Clone repository**, zoek `UA-ProductDevelopment-TDD/2026_Groep_2`, kies een map op je computer en klik op **Clone**.
 
 Je hebt nu het hele project op je computer staan.
 
