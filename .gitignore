@@ -38,3 +38,8 @@ build/
 
 # Secrets
 .env
+
+# AI-tools (Antigravity / Gemini)
+/skills/
+.agents/
+.gemini/
