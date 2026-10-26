@@ -14,6 +14,14 @@ Het project is verdeeld over drie teams. Elk team beheert één map.
 
 ## Samenwerken
 
+Nieuw met Git of GitHub? Lees eerst de stap-voor-stapuitleg in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Elke taak volgt dezelfde cyclus:
+
+```
+Issue → Branch → Commits → Pull request → Review → Merge
+```
+
 - Commit niet rechtstreeks op `main`. Maak een branch aan en open een pull request.
 - Geef branches de naam van je team en het werk, bijvoorbeeld `hardware/mount-bracket` of `software/sensor-driver`.
 - Vraag iemand van je eigen team om een pull request te reviewen voordat je merget.
@@ -21,6 +29,8 @@ Het project is verdeeld over drie teams. Elk team beheert één map.
 - Gebruik issues om taken en bugs bij te houden. Label elk issue met het team waartoe het behoort.
 
 ## Aan de slag
+
+Werk je met GitHub Desktop? Volg dan [CONTRIBUTING.md](CONTRIBUTING.md). Met de terminal gaat het zo:
 
 ```sh
 git clone https://github.com/UA-ProductDevelopment-TDD/2026_Groep_2.git
