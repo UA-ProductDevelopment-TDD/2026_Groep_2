@@ -2,6 +2,10 @@
 
 Een uitbreiding voor [Bittle](https://www.petoi.com/pages/bittle-open-source-bionic-robot-dog), de open-source vierpotige robot van Petoi.
 
+## Projectcontext
+
+Wat we bouwen, de architectuur en de afspraken staan in [AGENTS.md](AGENTS.md). Meer details in [`docs/`](docs/): [interfaces](docs/interfaces.md), [beslissingen](docs/beslissingen.md) en [componenten](docs/componenten.md).
+
 ## Teams
 
 Het project is verdeeld over drie teams. Elk team beheert één map.
@@ -9,7 +13,7 @@ Het project is verdeeld over drie teams. Elk team beheert één map.
 | Team | Map | Verantwoordelijkheid |
 | --- | --- | --- |
 | Hardware | [`hardware/`](hardware/) | Mechanisch en elektrisch ontwerp van de uitbreiding |
-| Software | [`software/`](software/) | Firmware en code die de uitbreiding aanstuurt |
+| Software / Elektronica | [`software/`](software/) | Firmware en code die de uitbreiding aanstuurt |
 | UI/UX | [`ui-ux/`](ui-ux/) | Ontwerp van de gebruikersinterface van het programma |
 
 ## Samenwerken

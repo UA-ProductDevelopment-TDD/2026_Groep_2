@@ -36,8 +36,10 @@ build/
 *.gcode
 *.bgcode
 
-# Secrets
+# Secrets (wifi, IP-adressen, HTTPS-certificaten)
 .env
+certs/
+*.pem
 
 # AI-tools (Antigravity / Gemini)
 /skills/
