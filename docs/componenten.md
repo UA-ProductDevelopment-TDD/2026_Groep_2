@@ -9,6 +9,7 @@ Prijzen zijn grove schattingen. Werk de kolom "Status" bij zodra iets besteld of
 | Petoi Bittle X met BiBoard V1 en batterij (2S, 7,4 V) | De robot; aangestuurd via WiFi (WebSocket, poort 81) |
 | Meta Quest 3 | VR-bediening via de browser (WebXR) |
 | Grovekit | Inhoud nog na te kijken (zie hieronder) |
+| DFRobot MLX90614 (I2C, adres 0x5A) | Warmtesensor voor de branddetectiemeter. Getest op een Arduino UNO R4 (zie `software/tests/mlx90614_test/`) |
 | Laptop | Draait de server in Docker |
 | Gsm's | Bediening via de browser |
 | 3D-printer + filament | Helm, rugzak met tank, spuitmond, camerahouder |
@@ -17,7 +18,6 @@ Prijzen zijn grove schattingen. Werk de kolom "Status" bij zodra iets besteld of
 
 Zit een van deze onderdelen erin, dan hoeft het niet besteld te worden:
 
-- Grove Thermal Imaging Camera (MLX90640, liefst de 55°-versie)
 - Grove MOSFET (of een relais) voor de pomp
 - Grove-kabels
 
@@ -32,7 +32,7 @@ Heeft de kit een eigen bordje (Arduino of Seeeduino)? Dat is niet nodig: het BiB
 | Component | Voorstel | ± Prijs | Status | Opmerking |
 |---|---|---|---|---|
 | Camera | Seeed XIAO ESP32-S3 Sense | €15 | te bestellen | Streamt beeld en warmtedata over WiFi naar de server |
-| Warmtesensor | MLX90640-**BAB** (55°) | €50–70 | te bestellen | Via I2C op de XIAO. Niet de 110°-versie (BAA) |
+| Warmtesensor | MLX90640-BAB (55°) | — | niet meer nodig | Vervangen door de MLX90614 die al aanwezig is (beslissing #17) |
 | 5V-voeding | Buck-converter 7,4 V naar 5 V (bv. Mini560) | €3 | te bestellen | Voedt de XIAO en de pomp vanuit de Bittle-batterij |
 | Pompschakeling | Logic-level MOSFET-module + flyback-diode | €2 | te bestellen | Een GPIO kan een pomp niet rechtstreeks aansturen |
 | Waterniveau | Contactloze sensor (bv. XKC-Y25) of 2 elektrodes in de tank | €1–5 | te bestellen | Op een analoge ingang van het BiBoard (GPIO 34–39) |

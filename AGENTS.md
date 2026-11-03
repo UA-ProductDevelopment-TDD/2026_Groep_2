@@ -11,8 +11,9 @@ Thema: **Paw Patrol**. Bittle wordt **Marshall**, de brandweerpup. Het is een sp
 ### Gedrag
 
 1. **Actie 1, manueel: de brand zoeken.** Het kind bestuurt Marshall met een joystick op een gsm of een Meta Quest 3, en ziet live wat de camera op zijn kop ziet.
-2. **Actie 2, automatisch: blussen.** Na een druk op de knop "blussen" zoekt Marshall de vlam met de warmtesensor, positioneert zich (de spuitmond zit tussen de achterpoten, dus hij moet zich omdraaien) en spuit water.
+2. **Actie 2, automatisch: blussen.** Na een druk op de knop "blussen" zoekt Marshall de vlam met de warmtesensor, positioneert zich (de spuitmond zit tussen de achterpoten, dus hij moet zich omdraaien) en spuit water. Dit verandert waarschijnlijk naar een aim assist (zie "Nog te beslissen").
 3. **Feedback** in de app: blafgeluid en melding als het vuur uit is, waterniveau en batterij.
+4. **Branddetectiemeter** in de app: een meter die hoger staat naarmate de warmtesensor een hogere temperatuur meet. Zo kan het kind "warm of koud" spelen tijdens het zoeken. Er is geen warmtebeeld over de video.
 
 Cyclus: patrouilleren, brand vinden, positioneren, plassen, verder patrouilleren.
 
@@ -25,7 +26,7 @@ BiBoard V1 (Bittle X) ──WiFi, WebSocket :81──┐
   pomp (via MOSFET), waterniveausensor       │
                                              ├── Server op laptop (Docker) ──HTTPS + WSS──┬── gsm-browser
 XIAO ESP32-S3 Sense ──WiFi, MJPEG + data─────┘   Python, FastAPI                         └── Quest 3-browser (WebXR)
-  camera + MLX90640-warmtesensor (I2C)
+  camera + MLX90614-warmtesensor (I2C)
 ```
 
 - **De server is de enige die met de robot en de camera praat.** De browsers praten alleen met de server. Reden: de Quest-browser en Safari op iOS ondersteunen geen Web Bluetooth, WebXR vereist HTTPS (de ESP32's spreken enkel `http`/`ws`), en een ESP32-camera kan maar 1 à 2 kijkers aan.
@@ -42,7 +43,7 @@ Berichtformaten en poorten staan in [`docs/interfaces.md`](docs/interfaces.md). 
 | Server | Python, FastAPI + uvicorn, `websockets`, numpy, OpenCV; draait in Docker |
 | Webapp | Vite + React + TypeScript; React Three Fiber + `@react-three/xr` voor VR; `nipplejs` voor de joystick; Tailwind CSS |
 | BiBoard-firmware | Fork van OpenCat ESP32: [UA-ProductDevelopment-TDD/OpenCatEsp32-Quadruped-Robot](https://github.com/UA-ProductDevelopment-TDD/OpenCatEsp32-Quadruped-Robot) (Arduino IDE) |
-| XIAO-firmware | Arduino (esp32-camera, een MLX90640-bibliotheek) |
+| XIAO-firmware | Arduino (esp32-camera, MLX90614 uitlezen met `Wire`) |
 | HTTPS lokaal | `mkcert`-certificaat met het LAN-IP van de laptop |
 
 Achtergrond en redenen: [`docs/beslissingen.md`](docs/beslissingen.md). Onderdelen: [`docs/componenten.md`](docs/componenten.md).
@@ -80,12 +81,15 @@ Alle in de org [UA-ProductDevelopment-TDD](https://github.com/UA-ProductDevelopm
 ## Status (oktober 2026)
 
 - Concept en architectuur liggen vast; er is nog geen code.
-- Aanwezig: Bittle X met BiBoard V1, Meta Quest 3, een Grovekit (inhoud nog niet bekend).
-- Te bestellen: XIAO ESP32-S3 Sense, MLX90640-BAB, pomp en toebehoren (zie `docs/componenten.md`).
+- Aanwezig: Bittle X met BiBoard V1, Meta Quest 3, een Grovekit (inhoud nog niet volledig bekend), een DFRobot MLX90614-warmtesensor (getest, werkt).
+- Te bestellen: XIAO ESP32-S3 Sense, pomp en toebehoren (zie `docs/componenten.md`). De MLX90640 hoeft niet meer besteld te worden.
 
 ### Nog te beslissen
 
+- Of het blussen automatisch blijft, of een **aim assist** wordt: het kind stuurt en mikt zelf, de robot helpt onopvallend bij (bv. bijsturen naar de warmste richting), zodat het kind het gevoel heeft dat het zelf blust. Dit is waarschijnlijk de richting, maar nog niet beslist.
 - Welke uitgangspin op het BiBoard de pomp schakelt (eerst testen met een LED en het `W`-commando).
 - Of de blusroutine een eigen firmware-commando wordt, of een reeks commando's vanaf de server.
-- Welke onderdelen uit de Grovekit bruikbaar zijn.
+- Welke andere onderdelen uit de Grovekit bruikbaar zijn.
+- Waar de MLX90614 komt (op de kop of bij de spuitmond) en op welk bord (XIAO of BiBoard).
+- De schaal van de branddetectiemeter (bij welke temperatuur hij leeg en vol staat), na tests met een theelichtje.
 - Het exacte maximumgewicht dat de Bittle X stabiel kan dragen.

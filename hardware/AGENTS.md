@@ -8,7 +8,7 @@ Lees eerst de [`AGENTS.md`](../AGENTS.md) in de root voor het volledige project.
 
 - **Marshall-pantser:** een helm en een rugzak met watertank, vastgeklikt op het frame van de Bittle X. Gemaakt met 3D-print.
 - **Spuitmond en slangetje** tussen de achterpoten, om het vuur uit te "plassen".
-- **Camerahouder op de kop**, met vrij zicht naast de helm. Daarop komen de XIAO ESP32-S3 Sense (camera) en de MLX90640-warmtesensor, die beide naar voren kijken.
+- **Camerahouder op de kop**, met vrij zicht naast de helm. Daarop komen de XIAO ESP32-S3 Sense (camera) en de MLX90614-warmtesensor, die beide naar voren kijken. De plaats van de warmtesensor is nog niet definitief (kop of bij de spuitmond).
 - **Waterdichtheid:** bescherm de elektronica tegen het water uit de tank en de spuitmond.
 - **Gewicht en zwaartepunt:** houd de tank zo klein en licht mogelijk (±30–50 ml) zodat Bittle stabiel blijft.
 

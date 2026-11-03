@@ -8,7 +8,7 @@ Lees eerst de [`AGENTS.md`](../AGENTS.md) in de root voor het volledige project.
 
 - **Server** (Python, FastAPI, in Docker): de enige verbinding met de robot en de camera. Hij zet app-berichten om naar Petoi-commando's, verdeelt het camerabeeld en detecteert de brand.
 - **BiBoard-firmware** (fork van [OpenCatEsp32](https://github.com/UA-ProductDevelopment-TDD/OpenCatEsp32-Quadruped-Robot)): blus-pose, pomp en waterniveau.
-- **XIAO ESP32-S3 Sense-firmware** (Arduino): MJPEG-stream en de MLX90640 uitlezen via I2C.
+- **XIAO ESP32-S3 Sense-firmware** (Arduino): MJPEG-stream en, als de sensor op de XIAO komt, de MLX90614 uitlezen via I2C.
 - **Elektronica:** pomp via een MOSFET, buck-converter van 7,4 V naar 5 V, waterniveausensor, en alles afschermen tegen water.
 - **Blusbeweging:** vlam vinden, omdraaien (de spuitmond zit achteraan), mikken, spuiten.
 
@@ -23,7 +23,9 @@ Alle berichtformaten en poorten staan in [`docs/interfaces.md`](../docs/interfac
 - **GPIO 34, 35, 36, 39** (de analoge Grove-poorten, `ANALOG1–4` in `src/OpenCat.h`) zijn **alleen ingangen**. Gebruik ze voor de waterniveausensor, niet voor de pomp.
 - De uitgangspin voor de pomp is nog niet gekozen. Kandidaten: de Grove-UART-pinnen (`UART_RX2`/`UART_TX2`) of een vrije servopoort. Test eerst met een LED.
 - De XIAO deelt alleen 5V/GND met het BiBoard. Er is geen dataverbinding tussen beide.
-- MLX90640: gebruik de **BAB-versie (55°)**. Op korte afstand (< 1 m) is een theelichtje een duidelijke hete plek. Combineer met het camerabeeld (een oranje, flikkerende vlek), zodat een hand niet als vlam wordt gezien.
+- **Warmtesensor: DFRobot MLX90614** (beslissing #17), I2C-adres 0x5A. Hij geeft één temperatuur (gemiddeld over zijn beeldhoek) en de omgevingstemperatuur. Geen positie in beeld, dus geen warmtebeeld.
+- De MLX90614 werkt officieel op maximaal 100 kHz (SMBus). Controleer elke uitlezing met de PEC-checksum, zoals in `tests/mlx90614_test/`.
+- De server zet `temperature - ambient` om in `level` (0–100) voor de branddetectiemeter (zie `docs/interfaces.md`).
 
 ## Server in Docker
 
