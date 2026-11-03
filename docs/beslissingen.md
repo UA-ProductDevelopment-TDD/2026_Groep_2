@@ -25,6 +25,7 @@ Elke belangrijke keuze, met de reden erbij. Nieuwe beslissingen komen onderaan. 
 
 ## Nog te beslissen
 
+- Of het blussen automatisch blijft, of een **aim assist** wordt: het kind stuurt en mikt zelf, de robot helpt onopvallend bij (bv. bijsturen naar de warmste richting), zodat het kind het gevoel heeft dat het zelf blust. Dit is waarschijnlijk de richting, maar nog niet beslist. Wordt het een aim assist, dan veranderen het bericht `extinguish` en de toestanden van `extinguish_state` in `docs/interfaces.md`.
 - Welke uitgangspin op het BiBoard de pomp schakelt. Let op: GPIO 34–39 zijn alleen ingangen.
 - Blusroutine als eigen firmware-commando, of als reeks commando's vanaf de server.
 - Hoe de joystick wordt omgezet naar Petoi-loopcommando's.

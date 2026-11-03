@@ -11,7 +11,7 @@ Thema: **Paw Patrol**. Bittle wordt **Marshall**, de brandweerpup. Het is een sp
 ### Gedrag
 
 1. **Actie 1, manueel: de brand zoeken.** Het kind bestuurt Marshall met een joystick op een gsm of een Meta Quest 3, en ziet live wat de camera op zijn kop ziet.
-2. **Actie 2, automatisch: blussen.** Na een druk op de knop "blussen" zoekt Marshall de vlam met de warmtesensor, positioneert zich (de spuitmond zit tussen de achterpoten, dus hij moet zich omdraaien) en spuit water.
+2. **Actie 2, automatisch: blussen.** Na een druk op de knop "blussen" zoekt Marshall de vlam met de warmtesensor, positioneert zich (de spuitmond zit tussen de achterpoten, dus hij moet zich omdraaien) en spuit water. Dit verandert waarschijnlijk naar een aim assist (zie "Nog te beslissen").
 3. **Feedback** in de app: blafgeluid en melding als het vuur uit is, waterniveau en batterij.
 4. **Branddetectiemeter** in de app: een meter die hoger staat naarmate de warmtesensor een hogere temperatuur meet. Zo kan het kind "warm of koud" spelen tijdens het zoeken. Er is geen warmtebeeld over de video.
 
@@ -86,6 +86,7 @@ Alle in de org [UA-ProductDevelopment-TDD](https://github.com/UA-ProductDevelopm
 
 ### Nog te beslissen
 
+- Of het blussen automatisch blijft, of een **aim assist** wordt: het kind stuurt en mikt zelf, de robot helpt onopvallend bij (bv. bijsturen naar de warmste richting), zodat het kind het gevoel heeft dat het zelf blust. Dit is waarschijnlijk de richting, maar nog niet beslist.
 - Welke uitgangspin op het BiBoard de pomp schakelt (eerst testen met een LED en het `W`-commando).
 - Of de blusroutine een eigen firmware-commando wordt, of een reeks commando's vanaf de server.
 - Welke andere onderdelen uit de Grovekit bruikbaar zijn.

@@ -11,7 +11,7 @@ Kinderen. De app moet speels zijn (Paw Patrol-look, Marshall de brandweerpup) en
 ## Taken
 
 - **Besturing (actie 1, manueel):** livebeeld van de camera met een joystick om Marshall te sturen.
-- **Blussen (actie 2, automatisch):** een knop "blussen". Marshall zoekt de vlam, zet zich in positie en spuit. Toon de voortgang (zoeken, positioneren, spuiten, klaar).
+- **Blussen (actie 2, automatisch):** een knop "blussen". Marshall zoekt de vlam, zet zich in positie en spuit. Toon de voortgang (zoeken, positioneren, spuiten, klaar). Dit wordt waarschijnlijk een aim assist: het kind mikt zelf en de robot helpt onopvallend bij. Nog niet beslist; zie de root-`AGENTS.md`.
 - **Feedback:** blafgeluid en een melding als het vuur uit is. Waterniveau en batterij altijd zichtbaar.
 - **Branddetectiemeter:** een meter die hoger staat naarmate de temperatuur hoger is. Hij volgt het veld `level` (0–100) uit het `fire`-bericht. Er komt geen warmtebeeld over de video.
 - **Noodstop:** een duidelijke stopknop.
