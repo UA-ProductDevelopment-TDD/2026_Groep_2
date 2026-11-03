@@ -20,11 +20,16 @@ Elke belangrijke keuze, met de reden erbij. Nieuwe beslissingen komen onderaan. 
 | 14 | 2026-10-27 | Eerst prototypen met **Grove-modules**; in de eindversie Grove alleen waar gewicht, ruimte en water het toelaten | Grove is snel en zonder solderen, maar groter en minder waterdicht |
 | 15 | 2026-10-27 | Documentatie in het Nederlands; code en comments in het Engels | Het project is Nederlandstalig; Engelse code is de norm |
 | 16 | 2026-10-27 | AI-context in `AGENTS.md` (root en per team); `CLAUDE.md` verwijst ernaar | Het team gebruikt Claude Code en Antigravity; één bron van waarheid |
+| 17 | 2026-11-03 | Warmtesensor: **DFRobot MLX90614** in plaats van de MLX90640 (vervangt #7) | De sensor is al aanwezig en getest (werkt via I2C, adres 0x5A). Hij meet één temperatuur, wat volstaat voor een meter. De MLX90640 hoeft niet besteld te worden |
+| 18 | 2026-11-03 | Geen warmtebeeld over de video; in de plaats een **branddetectiemeter** in de app die hoger staat naarmate de temperatuur hoger is | Eén temperatuurwaarde geeft geen beeld, maar wel een duidelijke meter. Voor kinderen is een meter eenvoudiger dan een warmtebeeld ("warm of koud" spelen) |
 
 ## Nog te beslissen
 
 - Welke uitgangspin op het BiBoard de pomp schakelt. Let op: GPIO 34–39 zijn alleen ingangen.
 - Blusroutine als eigen firmware-commando, of als reeks commando's vanaf de server.
 - Hoe de joystick wordt omgezet naar Petoi-loopcommando's.
-- Welke onderdelen uit de Grovekit bruikbaar zijn.
+- Welke andere onderdelen uit de Grovekit bruikbaar zijn.
+- Waar de MLX90614 komt (op de kop of bij de spuitmond) en op welk bord (XIAO of BiBoard).
+- De schaal van de branddetectiemeter, na tests met een theelichtje.
+- Welke variant van de MLX90614 we hebben (BAA = 90°, DCC = 35°, DCI = 5° beeldhoek). Bij 90° helpt een geprint buisje om de beeldhoek te verkleinen.
 - Maximaal gewicht op de Bittle X.

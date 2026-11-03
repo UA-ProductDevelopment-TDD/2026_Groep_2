@@ -13,6 +13,7 @@ Kinderen. De app moet speels zijn (Paw Patrol-look, Marshall de brandweerpup) en
 - **Besturing (actie 1, manueel):** livebeeld van de camera met een joystick om Marshall te sturen.
 - **Blussen (actie 2, automatisch):** een knop "blussen". Marshall zoekt de vlam, zet zich in positie en spuit. Toon de voortgang (zoeken, positioneren, spuiten, klaar).
 - **Feedback:** blafgeluid en een melding als het vuur uit is. Waterniveau en batterij altijd zichtbaar.
+- **Branddetectiemeter:** een meter die hoger staat naarmate de temperatuur hoger is. Hij volgt het veld `level` (0–100) uit het `fire`-bericht. Er komt geen warmtebeeld over de video.
 - **Noodstop:** een duidelijke stopknop.
 - **VR-versie:** dezelfde app op de Meta Quest 3, met het camerabeeld als scherm in de 3D-ruimte en besturing via de controllers.
 

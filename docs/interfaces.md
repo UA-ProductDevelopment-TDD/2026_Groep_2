@@ -37,10 +37,9 @@ Elk bericht is één JSON-object met een veld `type`.
 | `type` | Velden | Betekenis |
 |---|---|---|
 | `status` | `battery` (V), `water` (0–100 %), `connected` (`{ "biboard": bool, "camera": bool }`) | Elke seconde. |
-| `fire` | `detected` (bool), `x` (-1 tot 1, positie in beeld), `temperature` (°C) | Resultaat van de warmtesensor. |
+| `fire` | `detected` (bool), `level` (0–100), `temperature` (°C), `ambient` (°C) | Resultaat van de warmtesensor, minstens 2 keer per seconde. `level` stuurt de branddetectiemeter: hoe hoger de temperatuur, hoe hoger `level`. `detected` is `true` als `level` boven de drempel ligt. |
 | `extinguish_state` | `state`: `searching`, `positioning`, `spraying`, `done`, `failed` | Voortgang van de blusroutine. |
 | `fire_out` | — | Het vuur is uit: de app speelt het blafgeluid en toont een melding. |
-| `thermal` | `width` (32), `height` (24), `data` (lijst met 768 temperaturen) | Optioneel, voor een warmtebeeld over de video. |
 
 Voorbeelden:
 
@@ -48,7 +47,7 @@ Voorbeelden:
 { "type": "drive", "x": 0.4, "y": 0.8 }
 { "type": "extinguish" }
 { "type": "status", "battery": 7.4, "water": 60, "connected": { "biboard": true, "camera": true } }
-{ "type": "fire", "detected": true, "x": -0.2, "temperature": 85.3 }
+{ "type": "fire", "detected": true, "level": 72, "temperature": 48.6, "ambient": 23.4 }
 ```
 
 ## Server en BiBoard
@@ -65,5 +64,11 @@ Nog te beslissen: of de blusroutine een eigen firmware-commando wordt, of een re
 ## Server en XIAO
 
 - De XIAO serveert een MJPEG-stream over HTTP.
-- De XIAO leest de MLX90640 via I2C en biedt de 32×24 temperaturen aan als JSON.
+- De MLX90614 geeft twee waarden: `temperature` (wat de sensor ziet) en `ambient` (de temperatuur van de sensor zelf), allebei in °C.
+- Het bord met de sensor biedt die twee waarden aan; de server rekent `level` uit. Op welk bord de sensor komt, is nog te beslissen.
+
+### Branddetectiemeter (`level`)
+
+- De server rekent `level` uit het verschil `temperature - ambient`: 0 bij geen verschil, 100 bij het verschil van een theelichtje van dichtbij. Daartussen loopt de meter mee.
+- Het verschil van een vol theelichtje en de drempel voor `detected` worden vastgelegd na tests. Tot dan: nog te bepalen.
 - Eindpunten en verversingsfrequentie: nog vast te leggen door het Software-team.
