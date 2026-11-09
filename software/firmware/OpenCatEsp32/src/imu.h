@@ -915,8 +915,15 @@ void taskIMU(void *parameter) {
       // lastDebugPrint = millis();
     // }
     if (millis() - imuTime > 5) {
-      imuUpdated = readIMU();
-      getImuException();
+      extern SemaphoreHandle_t i2cBusMutex;
+      if (i2cBusMutex != NULL && xSemaphoreTake(i2cBusMutex, pdMS_TO_TICKS(10)) == pdTRUE) {
+        imuUpdated = readIMU();
+        getImuException();
+        xSemaphoreGive(i2cBusMutex);
+      } else if (i2cBusMutex == NULL) {
+        imuUpdated = readIMU();
+        getImuException();
+      }
       imuTime = millis();
     } else
     {

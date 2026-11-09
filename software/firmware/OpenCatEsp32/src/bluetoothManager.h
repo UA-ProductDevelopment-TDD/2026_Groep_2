@@ -168,7 +168,7 @@ void initBluetoothModes() {
   BLEDevice::deinit(false); // 去初始化BLE设备，但保留内存
   delay(500); // 等待去初始化完成
   }
-  if(activeBtMode != BT_MODE_CLIENT)
+  if(activeBtMode != BT_MODE_CLIENT) {}
 #endif
 #if defined(BT_BLE)
   // Only start BLE server

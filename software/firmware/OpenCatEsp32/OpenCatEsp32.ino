@@ -78,6 +78,8 @@ void loop() {
 #ifdef WEB_SERVER
   WebServerLoop();  // Handle asynchronous Web requests
 #endif
+
+  mlxLoop();
 }
 
 #ifdef QUICK_DEMO  // enter XQ in the serial monitor to activate the following section

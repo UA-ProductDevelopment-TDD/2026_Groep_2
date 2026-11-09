@@ -2,23 +2,26 @@
 
 De afspraken over hoe de onderdelen met elkaar praten. Het UI-team en het Software-team schrijven hun code apart (vaak met AI), dus dit bestand is de enige bron van waarheid. Wijzig eerst dit bestand, en pas daarna de code aan beide kanten.
 
-Status: **voorstel**, nog niet getest op hardware.
+Status: **werkend prototype** (getest met Meta Quest 2, BiBoard V1, MLX90614 en server).
 
 ## Overzicht
 
 | Verbinding | Protocol | Adres |
 |---|---|---|
-| Browser naar server | HTTPS (webapp) + WSS (berichten) | `https://<laptop-ip>/` en `wss://<laptop-ip>/ws` |
-| Browser naar camerabeeld | MJPEG via de server | `https://<laptop-ip>/stream` |
-| Server naar BiBoard | WebSocket (OpenCat-firmware) | `ws://<BIBOARD_IP>:81` |
-| Server naar XIAO | HTTP (MJPEG-stream + warmtedata) | `http://<CAMERA_IP>/...` (nog vast te leggen) |
+| Browser/VR naar server | HTTPS (webapp) + WSS (berichten) | `https://<laptop-ip>:8443/` en `wss://<laptop-ip>:8443/ws` |
+| Browser naar camerabeeld | MJPEG via de server | `https://<laptop-ip>:8443/stream` |
+| Server naar BiBoard | WebSocket (OpenCat-firmware) | `ws://<BIBOARD_IP>:81` (of seriële fallback `/dev/ttyACM0`) |
+| BiBoard naar server | HTTP POST (warmtetelemetrie) | `http://<laptop-ip>:8000/api/sensor` (4 Hz) |
+| Server naar XIAO | HTTP / WS (MJPEG-stream + warmtedata) | `http://<CAMERA_IP>:8081/stream` of `ws://<laptop-ip>:8000/ws/camera` |
 
-De IP-adressen staan in `.env` (nooit committen):
+De IP-adressen kunnen worden ingesteld via omgevingsvariabelen of `.env` (nooit committen):
 
 ```
-BIBOARD_IP=192.168.x.x
-CAMERA_IP=192.168.x.x
+BIBOARD_IP=172.20.10.4
+BIBOARD_SERIAL_PORT=/dev/ttyACM0
+CAMERA_IP=172.20.10.x
 ```
+*Opmerking:* Indien `BIBOARD_IP` niet vooraf is ingesteld, ontdekt de server het IP-adres van de hond automatisch via inkomende telemetrie op `POST /api/sensor`!
 
 ## Browser en server (WSS, JSON)
 
@@ -55,49 +58,49 @@ Voorbeelden:
 
 Binaire berichten op `/ws` zijn altijd JPEG-frames en komen alleen na `subscribe_frames`. Al het andere is JSON.
 
+## Meta Quest 2 VR-besturing & Knoppenmapping
+
+In de WebXR-omgeving (`https://<laptop-ip>:8443`):
+
+| Controller / Input | Actie | Gang / Commando |
+|---|---|---|
+| **Thumbstick Y >= 0.25** | Vooruit lopen | `kwkF` |
+| **Thumbstick Y >= 0.25 + X > 0.35** | Rechts afbuigen voorwaarts | `kwkR` |
+| **Thumbstick Y >= 0.25 + X < -0.35** | Links afbuigen voorwaarts | `kwkL` |
+| **Grip ingedrukt + Y >= 0.25** | Turbo draf vooruit / sturen | `ktrF`, `ktrR`, `ktrL` |
+| **Thumbstick Y <= -0.25** | Achteruit stappen | `kbk` (`kbkR`, `kbkL`) |
+| **Thumbstick \|Y\| < 0.25 & \|X\| > 0.30** | Ter plaatse draaien | `kwkR` / `kwkL` |
+| **Deadzone (straal < 0.18)** | Stilstaan in balans | `kbalance` |
+| **A-knop** | Zitten / Opstaan wisselen | `toggle_sit` (`ksit` / `kup`) |
+| **B-knop / Trigger** | Blushouding (poot opheffen) | `kpee` |
+| **X-knop** | Begroeten (pootje zwaaien) | `khi` |
+| **Y-knop** | Noodstop / Balans herstellen | `kbalance` |
+
 ## Prototype-server (`software/server/main.py`)
 
-Het prototype wijkt op een paar punten af van het overzicht hierboven. Dit is voorlopig; de eindversie draait in Docker op HTTPS-poort 443.
-
-- **Poorten:** HTTP op `8000` (browser, camera- en sensoringest) en HTTPS op `8443` (Quest, WebXR). Beide delen dezelfde toestand.
-- **Extra endpoints van de server:**
+- **Poorten:** HTTP op `8000` (browser, camera- en sensoringest) en HTTPS op `8443` (Meta Quest 2, WebXR). Beide delen dezelfde toestand.
+- **Auto-Discovery:** Wanneer het BiBoard telemetrie post naar `/api/sensor`, detecteert de server het client-IP (`request.client.host`) en koppelt automatisch de achtergrond WebSocket `ws://<DOG_IP>:81`.
+- **Endpoints van de server:**
 
 | Endpoint | Richting | Inhoud |
 |---|---|---|
 | `GET /frame.jpg` | server naar browser | Het laatste camerabeeld als één JPEG (voor de WebGL-textuur). |
 | `POST /api/camera/frame` | camera naar server | Body: één ruwe JPEG. Antwoord: `{ "ok": true, "seq": <volgnummer> }`, of `400` bij een lege body. |
 | `WS /ws/camera` | camera naar server | Binaire berichten zijn JPEG-frames. Tekstberichten zijn JSON: `{ "type": "sensor", "temperature": <°C>, "ambient": <°C> }`. Gebruikt door de camerasimulator. |
-| `POST /api/sensor` | sensor naar server | Zie "Warmtesensor naar server" hieronder. |
-
-- **Pull-modus:** zonder camera die zelf beelden pusht, haalt de server de MJPEG-stream op van `CAMERA_STREAM_URL` (en de warmtedata van `CAMERA_SENSOR_URL`). Met alleen `CAMERA_IP` gebruikt hij `http://<CAMERA_IP>:8081/stream` en `/sensor`, de adressen van de simulator.
+| `POST /api/sensor` | sensor/BiBoard naar server | Zie \"Warmtesensor naar server\" hieronder. |
 
 ## Server en BiBoard
 
 - De server gebruikt de bestaande Petoi-commando's over de WebSocket van de OpenCat-firmware (poort 81).
-- Joystick naar gang: de server zet `drive` om in Petoi-loopcommando's (`kwkF`, `kwkL`, `kwkR`, `kbk`, `kbalance`, ...). De exacte mapping legt het Software-team vast na het testen.
-- Batterij: het `P`-commando. Het antwoord heeft de vorm `Voltage: 7.42 V`.
-- Pomp: het `W`-commando (pin schrijven, binair verstuurd zoals Petoi's `ardSerial.py` dat doet). De pin is nog te bepalen.
-- Waterniveau: het `R`-commando op een analoge ingang (GPIO 34, 35, 36 of 39). Nog te bepalen welke.
-- **De pomp moet altijd een timeout hebben**, zodat hij nooit blijft lopen als de verbinding wegvalt.
+- Formaat: `{"type": "command", "taskId": "...", "commands": ["<gait>"]}` met fallback naar platte tekst strings.
+- Joystick naar gang: de server zet `drive` om via `software/server/bittle_driver.py`. Commando's worden enkel verzonden wanneer de gang daadwerkelijk verandert om bus- en WiFi-congestie te voorkomen.
 
-Nog te beslissen: of de blusroutine een eigen firmware-commando wordt, of een reeks commando's die de server stuurt.
+## Server en Warmtesensor (MLX90614)
 
-## Server en XIAO
+De MLX90614 hangt aan de Grove I2C-poort van het BiBoard V1 (SDA = GPIO 21, SCL = GPIO 22).
 
-- De XIAO serveert een MJPEG-stream over HTTP.
-- De MLX90614 geeft twee waarden: `temperature` (wat de sensor ziet) en `ambient` (de temperatuur van de sensor zelf), allebei in °C.
-- Het bord met de sensor biedt die twee waarden aan; de server rekent `level` uit. Op welk bord de sensor komt, is nog te beslissen.
-
-### Warmtesensor naar server (proefopstelling)
-
-Voor de test hangt de MLX90614 aan het BiBoard (Grove I2C-poort). Dit beslist niet op welk bord de sensor definitief komt (zie `docs/beslissingen.md`).
-
-- Het BiBoard stuurt de metingen met een HTTP-`POST` naar `http://<laptop-ip>:8000/api/sensor`, ongeveer 4 keer per seconde.
-- Body: `{ "temperature": 48.6, "ambient": 23.4 }`, beide in °C. De server antwoordt `{ "ok": true, "level": 72 }`, of `400` bij ongeldige of onmogelijke waarden.
-- Zolang de server in de laatste 3 seconden echte metingen kreeg, negeert hij de nagebootste waarden van de camerasimulator.
-
-### Branddetectiemeter (`level`)
-
-- De server rekent `level` uit het verschil `temperature - ambient`: 0 bij geen verschil, 100 bij het verschil van een theelichtje van dichtbij. Daartussen loopt de meter mee.
-- Het verschil van een vol theelichtje en de drempel voor `detected` worden vastgelegd na tests. Tot dan: nog te bepalen.
-- Eindpunten en verversingsfrequentie: nog vast te leggen door het Software-team.
+- **Bus-synchronisatie:** De ESP32 IMU-taak (`taskIMU` op Core 0) en de sensor-loop delen dezelfde I2C-bus via een FreeRTOS `i2cBusMutex`.
+- **Klok:** Tijdens de MLX90614 SMBus-uitlezing schakelt de firmware naar **100 kHz**, en keert daarna terug naar **400 kHz** voor de gyro.
+- **Telemetrie:** Het BiBoard stuurt de metingen via HTTP-`POST` naar `http://<laptop-ip>:8000/api/sensor` (elke 250 ms = 4 Hz).
+- Body: `{ "temperature": 48.6, "ambient": 23.4 }`, beide in °C. De server antwoordt `{ "ok": true, "level": 72 }`.
+- **Branddetectiemeter (`level`):** De server berekent `level = min(100, round((delta / 35.0) * 100))` waarbij `delta = max(0, temperature - ambient)`. Vanaf level 45 wordt `fire_detected = true`.
