@@ -422,6 +422,13 @@ async def post_sensor(request: Request):
     if not (-70.0 <= temperature <= 380.0 and -40.0 <= ambient <= 125.0):
         return JSONResponse({"ok": False, "error": "reading out of sensor range"}, status_code=400)
     state.update_thermal(temperature, ambient, live=True)
+
+    # Auto-discover dog BiBoard IP and connect WebSocket for driving
+    if request.client and request.client.host:
+        client_ip = request.client.host
+        if client_ip not in ("127.0.0.1", "::1") and not driver.is_connected:
+            driver.connect_ip(client_ip)
+
     return JSONResponse({"ok": True, "level": state.fire_level})
 
 

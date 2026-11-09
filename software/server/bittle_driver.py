@@ -19,9 +19,11 @@ Dispatches commands over:
 """
 
 import asyncio
+import json
 import logging
 import math
 import os
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
@@ -144,6 +146,19 @@ class BittleDriver:
         else:
             logger.info("BittleDriver running in simulation / virtual robot mode (no BiBoard IP configured).")
 
+    def connect_ip(self, ip: str) -> None:
+        """Dynamically attach or switch to BiBoard IP discovered via HTTP sensor telemetry."""
+        clean_ip = ip.strip()
+        if not clean_ip or clean_ip in ("127.0.0.1", "::1"):
+            return
+        if self.biboard_ip == clean_ip and self._ws_task and not self._ws_task.done():
+            return
+        self.biboard_ip = clean_ip
+        if self._ws_task:
+            self._ws_task.cancel()
+        self._ws_task = asyncio.create_task(self._wifi_ws_loop())
+        logger.info("BittleDriver auto-discovered dog at %s, starting WebSocket connection...", clean_ip)
+
     async def stop(self) -> None:
         """Stop connections and tasks."""
         if self._ws_task:
@@ -183,7 +198,7 @@ class BittleDriver:
                     self._connected = True
                     logger.info("BiBoard WebSocket connected at %s", url)
                     # Send initial balance pose
-                    await ws.send("kbalance")
+                    await self.send_command("kbalance")
                     while True:
                         msg = await ws.recv()
                         logger.debug("BiBoard RX: %s", msg)
@@ -196,17 +211,19 @@ class BittleDriver:
                 await asyncio.sleep(3.0)
 
     async def send_command(self, cmd: str) -> None:
-        """Send a raw OpenCat command (e.g. 'kwkF', 'kbalance', 'ksit')."""
+        """Send an OpenCat command (e.g. 'kwkF', 'kbalance', 'ksit') via WebSocket or Serial."""
         cmd_clean = cmd.strip()
         if not cmd_clean:
             return
 
         logger.info("Bittle TX -> %s (%s)", cmd_clean, MOTION_NAMES.get(cmd_clean, ""))
 
-        # 1. Send via WebSocket if available
+        # 1. Send via WebSocket if available (using OpenCat JSON command group format)
         if self._ws and self._connected:
             try:
-                await self._ws.send(cmd_clean)
+                task_id = f"cmd_{int(time.monotonic() * 1000)}"
+                json_payload = json.dumps({"type": "command", "taskId": task_id, "commands": [cmd_clean]})
+                await self._ws.send(json_payload)
             except (websockets.exceptions.WebSocketException, OSError) as exc:
                 logger.warning("BiBoard WS send failed: %s", exc)
 
