@@ -31,6 +31,7 @@ Elk bericht is één JSON-object met een veld `type`.
 | `drive` | `x`, `y`: getal van -1 tot 1 | Joystickstand. `y` > 0 is vooruit, `x` > 0 is rechts. `0, 0` is stilstaan. Stuur maximaal 10 keer per seconde. |
 | `extinguish` | — | Start de automatische blusroutine (actie 2). |
 | `stop` | — | Noodstop: stilstaan, pomp uit, blusroutine afbreken. |
+| `action` | `command`: string (bijv. `ksit`, `kup`, `kpee`, `khi`, `kbalance`) | Direct Petoi-commando uitvoeren uit Bittle Studio. |
 
 ### Van server naar app
 
@@ -40,6 +41,7 @@ Elk bericht is één JSON-object met een veld `type`.
 | `fire` | `detected` (bool), `level` (0–100), `temperature` (°C), `ambient` (°C), `source` (optioneel: `sensor`, `sim` of `none`) | Resultaat van de warmtesensor, minstens 2 keer per seconde. `level` stuurt de branddetectiemeter: hoe hoger de temperatuur, hoe hoger `level`. `detected` is `true` als `level` boven de drempel ligt. `source` zegt waar de waarde vandaan komt: `sensor` is de echte MLX90614, `sim` de camerasimulator, `none` nog geen meting. |
 | `extinguish_state` | `state`: `searching`, `positioning`, `spraying`, `done`, `failed` | Voortgang van de blusroutine. |
 | `fire_out` | — | Het vuur is uit: de app speelt het blafgeluid en toont een melding. |
+| `robot_gait` | `gait` (code zoals `kwkF`, `ktrF`, `kbalance`), `name` (leesbare naam), `turbo` (bool) | Huidige gang van de robot naar aanleiding van joystick of knoppen. |
 
 Voorbeelden:
 

@@ -196,6 +196,7 @@
       <span class="badge"><span id="cam-dot" class="dot"></span> Camera WiFi: <strong id="cam-status">Offline</strong></span>
       <span class="badge"><span id="sensor-dot" class="dot"></span> Heat sensor: <strong id="sensor-status">No data</strong></span>
       <span class="badge">Stream FPS: <strong id="fps-val">0.0</strong></span>
+      <span class="badge">🐾 Dog Gait: <strong id="header-gait-val" style="color: #60a5fa;">Balance [kbalance]</strong></span>
       <span class="badge">Battery: <strong id="bat-val">7.6 V</strong></span>
       <span class="badge">Water: <strong id="water-val">100%</strong></span>
     </div>
@@ -263,6 +264,12 @@
           <div></div>
           <button data-x="0" data-y="-1">▼ Back</button>
           <div></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
+          <button class="btn" id="btn-sit" style="background: #374151; font-size: 0.85rem; padding: 8px;">🪑 Sit / Stand</button>
+          <button class="btn" id="btn-pee" style="background: #0284c7; font-size: 0.85rem; padding: 8px;">💦 Pee Pose (kpee)</button>
+          <button class="btn" id="btn-hi" style="background: #374151; font-size: 0.85rem; padding: 8px;">👋 Wave (khi)</button>
+          <button class="btn" id="btn-balance" style="background: #374151; font-size: 0.85rem; padding: 8px;">🟢 Balance</button>
         </div>
       </div>
 
@@ -353,14 +360,14 @@
     // The same canvas is shown on the 3D panel in VR and in the sidebar on the 2D page.
     const inputCanvas = document.getElementById('input-canvas');
     inputCanvas.width = 1024;
-    inputCanvas.height = 400;
+    inputCanvas.height = 440;
     const inputCtx = inputCanvas.getContext('2d');
     const inputTexture = new THREE.CanvasTexture(inputCanvas);
     inputTexture.colorSpace = THREE.SRGBColorSpace;
     inputTexture.minFilter = THREE.LinearFilter;
 
     const inputPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.0, 2.0 * (400 / 1024)),
+      new THREE.PlaneGeometry(2.0, 2.0 * (440 / 1024)),
       new THREE.MeshBasicMaterial({ map: inputTexture, side: THREE.DoubleSide, transparent: true })
     );
     inputPanel.position.set(0, -1.35, 0.45);
@@ -507,17 +514,23 @@
       drawController(ctx, 512, 'RIGHT', controllers.right, ['A', 'B'], pressedNames);
 
       ctx.textAlign = 'center';
+
+      // Live Dog Gait Banner
+      ctx.fillStyle = '#1e2433';
+      ctx.fillRect(20, 335, 984, 52);
+      ctx.strokeStyle = currentGaitCode === 'kbalance' ? '#3b82f6' : '#22c55e';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, 335, 984, 52);
+
+      ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 24px sans-serif';
-      if (!controllers.left && !controllers.right) {
-        ctx.fillStyle = '#9ca3af';
-        ctx.fillText('Enter VR and pick up the Touch controllers to see inputs', 512, 200);
-      }
-      ctx.fillStyle = pressedNames.length ? '#22c55e' : '#6b7280';
-      ctx.fillText(
-        pressedNames.length ? `Pressed: ${pressedNames.join('  |  ')}` : 'Pressed: nothing',
-        512,
-        375
-      );
+      ctx.fillText(`🐾 MARSHALL GAIT: ${currentGaitName.toUpperCase()} [${currentGaitCode}]${currentTurbo ? ' 💨 TURBO TROT' : ''}`, 512, 370);
+
+      // Controller cheat-sheet footer
+      ctx.font = '17px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('🕹️ Stick: Walk & Steer  |  ✊ Grip: Turbo Trot  |  🅰️ Sit/Stand  |  🅱️ Pee Pose  |  🔫 Trigger: Extinguish  |  🇾 Stop', 512, 420);
+
       inputTexture.needsUpdate = true;
     }
 
@@ -527,6 +540,110 @@
     let latestFireLevel = 0;
     let latestObjTemp = 22.5;
     let decodingBitmap = false;
+
+    // Current robot gait state
+    let currentGaitCode = 'kbalance';
+    let currentGaitName = 'Balance (Stop)';
+    let currentTurbo = false;
+
+    // VR controller driving and button edge detection state
+    let lastDriveSendTime = 0;
+    let lastSentX = 0;
+    let lastSentY = 0;
+    let lastSentTurbo = false;
+    const prevButtons = {
+      rightA: false,
+      rightB: false,
+      rightTrigger: false,
+      leftX: false,
+      leftY: false,
+      leftTrigger: false,
+    };
+
+    function handleVrDriving(controllers) {
+      if (!currentXrSession) return;
+      const now = performance.now();
+      const left = controllers.left;
+      const right = controllers.right;
+
+      // Pick active thumbstick (right controller preferred, fallback to left)
+      let stick = null;
+      if (right && (Math.abs(right.stick.x) > 0.08 || Math.abs(right.stick.y) > 0.08)) {
+        stick = right.stick;
+      } else if (left && (Math.abs(left.stick.x) > 0.08 || Math.abs(left.stick.y) > 0.08)) {
+        stick = left.stick;
+      }
+
+      // Turbo / Trot mode: engaged when squeezing grip on either controller
+      const turbo = (left && (left.grip.pressed || left.grip.value > 0.4)) ||
+                    (right && (right.grip.pressed || right.grip.value > 0.4));
+
+      let x = 0;
+      let y = 0;
+      if (stick) {
+        x = stick.x;
+        y = -stick.y; // Invert WebXR stick Y so forward is positive
+      }
+
+      // Deadzone filter
+      if (Math.hypot(x, y) < 0.16) {
+        x = 0;
+        y = 0;
+      }
+
+      const isStopped = (x === 0 && y === 0);
+      const wasMoving = (lastSentX !== 0 || lastSentY !== 0);
+
+      // Send drive updates at 10 Hz (every 100ms) or immediately on state changes
+      if (isStopped && wasMoving) {
+        sendJson({ type: 'drive', x: 0, y: 0, turbo: false });
+        lastSentX = 0;
+        lastSentY = 0;
+        lastSentTurbo = false;
+        lastDriveSendTime = now;
+      } else if (!isStopped && (now - lastDriveSendTime >= 100 || Math.abs(x - lastSentX) > 0.18 || Math.abs(y - lastSentY) > 0.18 || turbo !== lastSentTurbo)) {
+        sendJson({ type: 'drive', x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), turbo });
+        lastSentX = x;
+        lastSentY = y;
+        lastSentTurbo = turbo;
+        lastDriveSendTime = now;
+      }
+
+      // Button press edge detection (triggers on down)
+      if (right) {
+        if (right.lower.pressed && !prevButtons.rightA) {
+          sendJson({ type: 'action', command: 'toggle_sit' });
+        }
+        prevButtons.rightA = right.lower.pressed;
+
+        if (right.upper.pressed && !prevButtons.rightB) {
+          sendJson({ type: 'action', command: 'kpee' });
+        }
+        prevButtons.rightB = right.upper.pressed;
+
+        if (right.trigger.pressed && !prevButtons.rightTrigger) {
+          sendJson({ type: 'extinguish' });
+        }
+        prevButtons.rightTrigger = right.trigger.pressed;
+      }
+
+      if (left) {
+        if (left.lower.pressed && !prevButtons.leftX) {
+          sendJson({ type: 'action', command: 'khi' });
+        }
+        prevButtons.leftX = left.lower.pressed;
+
+        if (left.upper.pressed && !prevButtons.leftY) {
+          sendJson({ type: 'stop' });
+        }
+        prevButtons.leftY = left.upper.pressed;
+
+        if (left.trigger.pressed && !prevButtons.leftTrigger) {
+          sendJson({ type: 'extinguish' });
+        }
+        prevButtons.leftTrigger = left.trigger.pressed;
+      }
+    }
 
     function drawHudOverlayOnTexture() {
       // Draw a compact thermal fire meter bar at the bottom of the VR video screen
@@ -570,7 +687,9 @@
           videoTexture.needsUpdate = true;
         } catch (_) {}
       }
-      drawInputPanel(readControllers());
+      const currentControllers = readControllers();
+      handleVrDriving(currentControllers);
+      drawInputPanel(currentControllers);
       renderer.render(scene, camera);
     });
 
@@ -643,7 +762,19 @@
         }
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === 'status') {
+          if (msg.type === 'robot_gait') {
+            currentGaitCode = msg.gait || 'kbalance';
+            currentGaitName = msg.name || 'Balance';
+            currentTurbo = Boolean(msg.turbo);
+            const badge = document.getElementById('header-gait-val');
+            if (badge) badge.textContent = `${currentGaitName} [${currentGaitCode}]`;
+          } else if (msg.type === 'status') {
+            if (msg.gait) {
+              currentGaitCode = msg.gait;
+              currentGaitName = msg.gait_name || msg.gait;
+              const badge = document.getElementById('header-gait-val');
+              if (badge) badge.textContent = `${currentGaitName} [${currentGaitCode}]`;
+            }
             batVal.textContent = `${Number(msg.battery).toFixed(2)} V`;
             waterVal.textContent = `${msg.water}%`;
             if (msg.fps !== undefined) {
@@ -708,6 +839,22 @@
 
     document.getElementById('btn-stop').addEventListener('click', () => {
       sendJson({ type: 'stop' });
+    });
+
+    document.getElementById('btn-sit').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'toggle_sit' });
+    });
+
+    document.getElementById('btn-pee').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'kpee' });
+    });
+
+    document.getElementById('btn-hi').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'khi' });
+    });
+
+    document.getElementById('btn-balance').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'kbalance' });
     });
   </script>
 </body>

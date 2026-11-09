@@ -12,7 +12,8 @@ Quick prototype for testing WiFi camera video streaming into the main FastAPI se
   - Accepts video streams over WiFi via **Push** (`WS /ws/camera` or `POST /api/camera/frame`) and **Pull** (`CAMERA_STREAM_URL` / `CAMERA_IP` multipart MJPEG).
   - Broadcasts live video to browsers via `GET /stream` (MJPEG), `GET /frame.jpg`, and binary WebSocket frames on `WS /ws`.
   - Implements the JSON WebSocket telemetry/control protocol from [`docs/interfaces.md`](../docs/interfaces.md) (`status`, `fire`, `drive`, `extinguish`, `stop`).
-- [`server/static/index.html`](server/static/index.html): Web & WebXR (Three.js) application with a 2D MJPEG view, fire detection meter, manual drive controls, and an **"Enter VR"** mode for Meta Quest 2 (with world-space or head-locked HUD toggle) and a live controller input panel (trigger, grip, thumbsticks, A/B/X/Y).
+- [`server/bittle_driver.py`](server/bittle_driver.py): Robot driver translating joystick & VR controller inputs into Petoi OpenCat gaits based on **Bittle Studio** (`kwkF`, `ktrF`, `kwkL`, `kwkR`, `kbk`, `kbalance`, `ksit`, `kpee`, `khi`).
+- [`server/static/index.html`](server/static/index.html): Web & WebXR (Three.js) application with a 2D MJPEG view, fire detection meter, manual drive controls, and an **"Enter VR"** mode for Meta Quest 2 featuring **intuitive walking** (thumbstick drive, grip turbo trot, A sit/stand, B/trigger extinguish pose, X wave, Y stop).
 - [`camera_sim/simulator.py`](camera_sim/simulator.py): Simulated XIAO ESP32-S3 Sense camera + MLX90614 thermal sensor server.
   - Streams an animated Bittle POV with a flickering tea-light flame (or a webcam/video file via `--source 0` or `--source video.mp4`).
   - Both pushes frames to the main server (`ws://<server-ip>:8000/ws/camera`) and serves an ESP32-compatible MJPEG stream at `http://<sim-ip>:8081/stream`.

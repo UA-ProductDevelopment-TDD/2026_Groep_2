@@ -25,6 +25,7 @@ import cv2
 import httpx
 import numpy as np
 import uvicorn
+from bittle_driver import BittleDriver, DriveMapping
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import (
@@ -147,6 +148,22 @@ class StreamState:
 state = StreamState()
 
 
+def on_gait_changed(mapping: DriveMapping) -> None:
+    asyncio.create_task(
+        broadcast_json(
+            {
+                "type": "robot_gait",
+                "gait": mapping.command,
+                "name": mapping.name,
+                "turbo": mapping.turbo,
+            }
+        )
+    )
+
+
+driver = BittleDriver(on_gait_change=on_gait_changed)
+
+
 async def broadcast_json(payload: dict) -> None:
     if not state.clients:
         return
@@ -202,8 +219,10 @@ async def telemetry_loop() -> None:
                     "battery": state.battery_voltage,
                     "water": state.water_percent,
                     "fps": state.fps if state.camera_connected else 0.0,
+                    "gait": driver.current_gait,
+                    "gait_name": driver.current_gait_name,
                     "connected": {
-                        "biboard": state.biboard_connected,
+                        "biboard": driver.is_connected,
                         "camera": state.camera_connected,
                     },
                 }
@@ -254,15 +273,28 @@ async def camera_pull_loop(stream_url: str, sensor_url: str | None) -> None:
 
 
 async def simulate_extinguish_routine() -> None:
-    """Simulate the extinguish state machine from `docs/interfaces.md`."""
+    """Simulate the extinguish state machine from `docs/interfaces.md` using Bittle gaits."""
     try:
-        for step, duration in [("searching", 1.5), ("positioning", 1.8), ("spraying", 2.0)]:
-            await broadcast_json({"type": "extinguish_state", "state": step})
-            await asyncio.sleep(duration)
+        await broadcast_json({"type": "extinguish_state", "state": "searching"})
+        await driver.send_command("kwkR")  # scan right
+        await asyncio.sleep(1.2)
+
+        await broadcast_json({"type": "extinguish_state", "state": "positioning"})
+        await driver.send_command("kwkR")  # turn around to rear nozzle
+        await asyncio.sleep(1.5)
+        await driver.send_command("kbalance")
+        await asyncio.sleep(0.3)
+
+        await broadcast_json({"type": "extinguish_state", "state": "spraying"})
+        await driver.execute_action("kpee")  # lift leg in pee pose to spray
+        await asyncio.sleep(2.5)
+
         state.water_percent = max(0, state.water_percent - 15)
+        await driver.send_command("kbalance")
         await broadcast_json({"type": "extinguish_state", "state": "done"})
         await broadcast_json({"type": "fire_out"})
     except asyncio.CancelledError:
+        await driver.send_command("kbalance")
         await broadcast_json({"type": "extinguish_state", "state": "failed"})
 
 
@@ -277,12 +309,14 @@ async def lifespan(_app: FastAPI):
     _lifespan_refs += 1
     if _lifespan_refs == 1:
         _background_tasks.append(asyncio.create_task(telemetry_loop()))
+        _background_tasks.append(asyncio.create_task(driver.start()))
         _start_camera_pull()
     try:
         yield
     finally:
         _lifespan_refs -= 1
         if _lifespan_refs == 0:
+            await driver.stop()
             for task in _background_tasks:
                 task.cancel()
             _background_tasks.clear()
@@ -445,8 +479,10 @@ async def ws_client(ws: WebSocket):
                     "battery": state.battery_voltage,
                     "water": state.water_percent,
                     "fps": state.fps if state.camera_connected else 0.0,
+                    "gait": driver.current_gait,
+                    "gait_name": driver.current_gait_name,
                     "connected": {
-                        "biboard": state.biboard_connected,
+                        "biboard": driver.is_connected,
                         "camera": state.camera_connected,
                     },
                 }
@@ -461,15 +497,22 @@ async def ws_client(ws: WebSocket):
 
             msg_type = msg.get("type")
             if msg_type == "drive":
-                state.last_drive = {
-                    "x": float(msg.get("x", 0.0)),
-                    "y": float(msg.get("y", 0.0)),
-                }
+                x = float(msg.get("x", 0.0))
+                y = float(msg.get("y", 0.0))
+                turbo = bool(msg.get("turbo", False) or msg.get("speed") == "turbo")
+                state.last_drive = {"x": x, "y": y, "turbo": turbo}
+                await driver.update_drive(x, y, turbo=turbo)
+            elif msg_type == "action":
+                cmd = str(msg.get("command", "")).strip()
+                if cmd:
+                    await driver.execute_action(cmd)
             elif msg_type == "extinguish":
+                await driver.execute_action("kpee")
                 if state.extinguish_task is None or state.extinguish_task.done():
                     state.extinguish_task = asyncio.create_task(simulate_extinguish_routine())
             elif msg_type == "stop":
-                state.last_drive = {"x": 0.0, "y": 0.0}
+                state.last_drive = {"x": 0.0, "y": 0.0, "turbo": False}
+                await driver.emergency_stop()
                 if state.extinguish_task and not state.extinguish_task.done():
                     state.extinguish_task.cancel()
             elif msg_type == "subscribe_frames":
