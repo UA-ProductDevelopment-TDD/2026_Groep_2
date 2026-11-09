@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Marshall (Bittle X Add-on) Main Bridge Server.
 
@@ -16,12 +15,11 @@ Responsibilities:
 import argparse
 import asyncio
 import contextlib
-from contextlib import asynccontextmanager
 import json
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Set
 
 import cv2
 import httpx
@@ -29,7 +27,13 @@ import numpy as np
 import uvicorn
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -62,9 +66,9 @@ class StreamState:
         self.extinguish_task: asyncio.Task | None = None
 
         # Connected browser / VR clients on /ws
-        self.clients: Set[WebSocket] = set()
+        self.clients: set[WebSocket] = set()
         # Subset of clients that requested binary JPEG frames over /ws (for low-latency WebXR)
-        self.vr_frame_clients: Set[WebSocket] = set()
+        self.vr_frame_clients: set[WebSocket] = set()
 
     @property
     def camera_connected(self) -> bool:
@@ -151,7 +155,7 @@ async def broadcast_json(payload: dict) -> None:
     for ws in list(state.clients):
         try:
             await ws.send_text(data)
-        except Exception:
+        except (WebSocketDisconnect, RuntimeError, ConnectionResetError, OSError):
             stale.append(ws)
     for ws in stale:
         state.clients.discard(ws)
@@ -165,7 +169,7 @@ async def broadcast_binary_frame(jpeg_bytes: bytes) -> None:
     for ws in list(state.vr_frame_clients):
         try:
             await ws.send_bytes(jpeg_bytes)
-        except Exception:
+        except (WebSocketDisconnect, RuntimeError, ConnectionResetError, OSError):
             stale.append(ws)
     for ws in stale:
         state.vr_frame_clients.discard(ws)
@@ -241,11 +245,11 @@ async def camera_pull_loop(stream_url: str, sensor_url: str | None) -> None:
                                         sdata.get("temperature", 22.5),
                                         sdata.get("ambient", 22.5),
                                     )
-                            except Exception:
+                            except (httpx.HTTPError, ValueError):
                                 pass
             except asyncio.CancelledError:
                 break
-            except Exception:
+            except (httpx.HTTPError, OSError):
                 await asyncio.sleep(2.0)
 
 
@@ -325,7 +329,7 @@ async def mjpeg_stream():
             if state.frame_seq == last_sent_seq:
                 try:
                     await asyncio.wait_for(state.frame_event.wait(), timeout=0.5)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     pass
             last_sent_seq = state.frame_seq
             jpeg = state.latest_jpeg
@@ -415,7 +419,7 @@ async def ws_camera_ingest(ws: WebSocket):
                     pass
     except WebSocketDisconnect:
         pass
-    except Exception as exc:
+    except (RuntimeError, ConnectionResetError, OSError) as exc:
         print(f"[SERVER] Camera stream error: {exc}")
     finally:
         print("[SERVER] Camera stream disconnected")
@@ -490,7 +494,11 @@ async def serve_http_and_https(http_config: uvicorn.Config, https_config: uvicor
     https_server = uvicorn.Server(https_config)
 
     # Only the first server owns the signal handlers; Ctrl+C stops both.
-    https_server.capture_signals = lambda: contextlib.nullcontext()
+    @contextlib.contextmanager
+    def _noop_signals():
+        yield
+
+    https_server.capture_signals = _noop_signals
     original_handle_exit = http_server.handle_exit
 
     def handle_exit(sig, frame):

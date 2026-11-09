@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Simulated XIAO ESP32-S3 Sense Camera + MLX90614 Heat Sensor Server.
 
@@ -19,14 +18,13 @@ Video sources:
 
 import argparse
 import asyncio
-from contextlib import asynccontextmanager
 import json
 import math
-from pathlib import Path
 import subprocess
 import sys
 import time
-from typing import Optional
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -76,7 +74,7 @@ class CameraSource:
         self.fps = fps
         self.width = width
         self.height = height
-        self.cap: Optional[cv2.VideoCapture] = None
+        self.cap: cv2.VideoCapture | None = None
         self.frame_count = 0
         self.start_time = time.time()
 
@@ -94,7 +92,7 @@ class CameraSource:
             else:
                 native_fps = self.cap.get(cv2.CAP_PROP_FPS)
                 if native_fps and 5 <= native_fps <= 60:
-                    self.fps = int(round(native_fps))
+                    self.fps = round(native_fps)
                 print(f"[CAMERA-SIM] Loaded video source '{resolved}' ({self.width}x{self.height} @ {self.fps} FPS)")
 
     def next_frame(self) -> bytes:
@@ -196,8 +194,8 @@ class CameraSource:
         return img
 
 
-camera_source: Optional[CameraSource] = None
-push_target_url: Optional[str] = None
+camera_source: CameraSource | None = None
+push_target_url: str | None = None
 
 
 async def push_loop(ws_url: str, cam: CameraSource):
@@ -233,7 +231,7 @@ async def push_loop(ws_url: str, cam: CameraSource):
                     await asyncio.sleep(max(0.005, interval - elapsed))
         except asyncio.CancelledError:
             break
-        except Exception as exc:
+        except (TimeoutError, websockets.exceptions.WebSocketException, OSError) as exc:
             print(f"[CAMERA-SIM] Push connection lost ({exc}). Retrying in 0.5s...")
             await asyncio.sleep(0.5)
 
@@ -280,12 +278,13 @@ async def get_sensor():
 async def mjpeg_stream():
     """Serve an ESP32-compatible multipart MJPEG stream over HTTP."""
     assert camera_source is not None
-    interval = 1.0 / max(1, camera_source.fps)
+    cam = camera_source
+    interval = 1.0 / max(1, cam.fps)
 
     async def generate():
         while True:
             t0 = time.monotonic()
-            jpeg = camera_source.next_frame()
+            jpeg = cam.next_frame()
             if jpeg:
                 header = (
                     b"--frame\r\n"
