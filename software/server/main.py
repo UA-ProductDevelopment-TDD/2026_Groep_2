@@ -114,6 +114,7 @@ class StreamState:
         # Compute fire meter level (0-100) from (temperature - ambient) per docs/interfaces.md
         delta = max(0.0, self.temperature - self.ambient)
         # Full scale (~100) at +35C above ambient (tea-light candle at close range)
+        # TODO: provisional values (35 C full scale, threshold 45); calibrate with a real tea light.
         self.fire_level = int(min(100, round((delta / 35.0) * 100)))
         self.fire_detected = self.fire_level >= 45
 
@@ -523,6 +524,9 @@ async def ws_client(ws: WebSocket):
     except WebSocketDisconnect:
         pass
     finally:
+        # TODO (safety): a lost connection must mean "stand still, pump off" (AGENTS.md).
+        # Stop the robot and cancel the extinguish task here, and add a server-side drive
+        # timeout so the robot stops if no `drive` message arrives for a while.
         state.clients.discard(ws)
         state.vr_frame_clients.discard(ws)
 

@@ -28,16 +28,17 @@ Elk bericht is één JSON-object met een veld `type`.
 
 | `type` | Velden | Betekenis |
 |---|---|---|
-| `drive` | `x`, `y`: getal van -1 tot 1 | Joystickstand. `y` > 0 is vooruit, `x` > 0 is rechts. `0, 0` is stilstaan. Stuur maximaal 10 keer per seconde. |
+| `drive` | `x`, `y`: getal van -1 tot 1; `turbo` (optioneel, bool) | Joystickstand. `y` > 0 is vooruit, `x` > 0 is rechts. `0, 0` is stilstaan. Stuur maximaal 10 keer per seconde. Met `turbo: true` draaft de robot (`ktrF`, ...) in plaats van te stappen. |
 | `extinguish` | — | Start de automatische blusroutine (actie 2). |
 | `stop` | — | Noodstop: stilstaan, pomp uit, blusroutine afbreken. |
-| `action` | `command`: string (bijv. `ksit`, `kup`, `kpee`, `khi`, `kbalance`) | Direct Petoi-commando uitvoeren uit Bittle Studio. |
+| `action` | `command`: string (bijv. `ksit`, `kup`, `kpee`, `khi`, `kbalance`, of `toggle_sit`) | Direct Petoi-commando uitvoeren uit Bittle Studio. `toggle_sit` wisselt tussen zitten (`ksit`) en rechtstaan (`kup`). |
+| `subscribe_frames` | `enabled` (bool, standaard `true`) | Optioneel. Vraagt de server om het camerabeeld ook als binaire JPEG-frames over deze WebSocket te sturen (voor de VR-textuur). Een client die dit niet stuurt, krijgt alleen JSON. |
 
 ### Van server naar app
 
 | `type` | Velden | Betekenis |
 |---|---|---|
-| `status` | `battery` (V), `water` (0–100 %), `connected` (`{ "biboard": bool, "camera": bool }`) | Elke seconde. |
+| `status` | `battery` (V), `water` (0–100 %), `connected` (`{ "biboard": bool, "camera": bool }`); optioneel `fps` (beelden per seconde van de camera), `gait` en `gait_name` (huidige gang, zoals bij `robot_gait`) | Elke seconde. |
 | `fire` | `detected` (bool), `level` (0–100), `temperature` (°C), `ambient` (°C), `source` (optioneel: `sensor`, `sim` of `none`) | Resultaat van de warmtesensor, minstens 2 keer per seconde. `level` stuurt de branddetectiemeter: hoe hoger de temperatuur, hoe hoger `level`. `detected` is `true` als `level` boven de drempel ligt. `source` zegt waar de waarde vandaan komt: `sensor` is de echte MLX90614, `sim` de camerasimulator, `none` nog geen meting. |
 | `extinguish_state` | `state`: `searching`, `positioning`, `spraying`, `done`, `failed` | Voortgang van de blusroutine. |
 | `fire_out` | — | Het vuur is uit: de app speelt het blafgeluid en toont een melding. |
@@ -51,6 +52,24 @@ Voorbeelden:
 { "type": "status", "battery": 7.4, "water": 60, "connected": { "biboard": true, "camera": true } }
 { "type": "fire", "detected": true, "level": 72, "temperature": 48.6, "ambient": 23.4 }
 ```
+
+Binaire berichten op `/ws` zijn altijd JPEG-frames en komen alleen na `subscribe_frames`. Al het andere is JSON.
+
+## Prototype-server (`software/server/main.py`)
+
+Het prototype wijkt op een paar punten af van het overzicht hierboven. Dit is voorlopig; de eindversie draait in Docker op HTTPS-poort 443.
+
+- **Poorten:** HTTP op `8000` (browser, camera- en sensoringest) en HTTPS op `8443` (Quest, WebXR). Beide delen dezelfde toestand.
+- **Extra endpoints van de server:**
+
+| Endpoint | Richting | Inhoud |
+|---|---|---|
+| `GET /frame.jpg` | server naar browser | Het laatste camerabeeld als één JPEG (voor de WebGL-textuur). |
+| `POST /api/camera/frame` | camera naar server | Body: één ruwe JPEG. Antwoord: `{ "ok": true, "seq": <volgnummer> }`, of `400` bij een lege body. |
+| `WS /ws/camera` | camera naar server | Binaire berichten zijn JPEG-frames. Tekstberichten zijn JSON: `{ "type": "sensor", "temperature": <°C>, "ambient": <°C> }`. Gebruikt door de camerasimulator. |
+| `POST /api/sensor` | sensor naar server | Zie "Warmtesensor naar server" hieronder. |
+
+- **Pull-modus:** zonder camera die zelf beelden pusht, haalt de server de MJPEG-stream op van `CAMERA_STREAM_URL` (en de warmtedata van `CAMERA_SENSOR_URL`). Met alleen `CAMERA_IP` gebruikt hij `http://<CAMERA_IP>:8081/stream` en `/sensor`, de adressen van de simulator.
 
 ## Server en BiBoard
 

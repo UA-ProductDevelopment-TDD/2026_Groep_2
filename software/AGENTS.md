@@ -40,6 +40,37 @@ Alle berichtformaten en poorten staan in [`docs/interfaces.md`](../docs/interfac
 - De pomp krijgt altijd een **timeout**, zowel in de firmware als op de server.
 - Een `stop`-bericht of een verbroken verbinding betekent: stilstaan en de pomp uit.
 
+## Openstaande punten van het prototype (review PR #4)
+
+Bewust nog niet opgelost. Pak ze op voor het prototype de basis van de eindversie wordt.
+
+**Veiligheid (voor de robot echt rondloopt bij kinderen):**
+
+- Een verbroken `/ws`-verbinding stopt de robot niet en breekt de blusroutine niet af (`server/main.py`, `finally` van `ws_client`).
+- Er is geen timeout op `drive` aan de serverkant: valt het `0, 0`-bericht weg, dan blijft de robot lopen.
+- De D-pad in het dashboard stopt alleen bij `pointerup`, niet bij `pointerleave` of `pointercancel`.
+- `action` stuurt elke willekeurige tekst rechtstreeks naar het BiBoard. Beter: een lijst met toegelaten commando's.
+- `extinguish` stuurt meteen `kpee`, ook als de blusroutine al loopt.
+
+**Kalibratie:**
+
+- De branddetectiemeter gebruikt voorlopige waarden: volle uitslag bij +35 °C, drempel `detected` bij `level` 45 (server en dashboard). Vastleggen na tests met een theelichtje.
+
+**Kleinere punten:**
+
+- Pull-modus: de sensor wordt opgevraagd per stuk van 4 KB zolang `frame_seq % 10 == 0`, dus meerdere keren per frame, en dat houdt de stream op. De JPEG-parser loopt vast als er een `FFD9` vóór `FFD8` in de buffer staat.
+- Bij `CAMERA_IP` gebruikt de server poort `8081` (de simulator). De CameraWebServer van de ESP32 streamt meestal op `:81/stream`.
+- `except TimeoutError` rond `asyncio.wait_for` werkt pas vanaf Python 3.11. Zet de minimumversie in de README.
+- `float(msg.get("x"))` zonder `try` sluit de WebSocket bij ongeldige invoer, en `x`/`y` worden niet begrensd op -1..1.
+- Een trage VR-client vertraagt de camera-ingest, want frames worden na elkaar verstuurd.
+- Afwijkingen van de afspraken, vast te leggen in `docs/beslissingen.md` of recht te zetten: geen Docker, poorten 8000/8443 in plaats van 443, en een `openssl`-certificaat in plaats van `mkcert`.
+- In de code en de docs staat "Meta Quest 2"; we hebben een Quest 3.
+- Three.js komt van unpkg (CDN) en werkt dus niet op een netwerk zonder internet.
+- Het testdashboard (`server/static/`) overlapt met de webapp van het UI-team.
+- De camerasimulator downloadt standaard een YouTube-video met `yt-dlp`. Beter is standaard `synthetic`.
+- De scripts zijn bash (`hostname -I`, `.venv/bin`) en werken niet zomaar op Windows.
+- Na te kijken op de hardware: of de WebSocket van OpenCat op poort 81 ruwe tekstcommando's zoals `kwkF` aanvaardt, zoals `bittle_driver.py` ze nu verstuurt.
+
 ## Hergebruik
 
 - **Bittle Studio:** de blus-pose ontwerpen en testen in de simulator; export naar `PetoiRobot`-scripts.

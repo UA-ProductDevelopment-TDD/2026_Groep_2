@@ -830,6 +830,7 @@
       const x = parseFloat(btn.dataset.x);
       const y = parseFloat(btn.dataset.y);
       btn.addEventListener('pointerdown', () => sendJson({ type: 'drive', x, y }));
+      // TODO (safety): also stop on pointerleave/pointercancel, otherwise the robot keeps walking.
       btn.addEventListener('pointerup', () => sendJson({ type: 'drive', x: 0, y: 0 }));
     });
 
