@@ -1,0 +1,10 @@
+{
+  "venvPath": "software",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "software",
+      "extraPaths": ["software"]
+    }
+  ]
+}

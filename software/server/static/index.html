@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Marshall — Bittle X Firefighter HUD & WebXR Stream</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --panel: #1c2029;
+      --border: #2e3442;
+      --accent: #ef4444;
+      --accent-amber: #f59e0b;
+      --ok: #22c55e;
+      --text: #f3f4f6;
+      --muted: #9ca3af;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #262b38;
+      border: 1px solid var(--border);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+    }
+    .dot.online { background: var(--ok); }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 16px;
+      padding: 16px;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .video-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .video-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      background: #090a0d;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #mjpeg-view {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    #vr-canvas-container {
+      width: 100%;
+      height: 220px;
+      background: #08090c;
+      border-top: 1px solid var(--border);
+      position: relative;
+    }
+    .vr-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: #161922;
+      border-top: 1px solid var(--border);
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .card h2 {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+    .meter-track {
+      width: 100%;
+      height: 24px;
+      background: #111318;
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      margin: 8px 0;
+    }
+    .meter-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #3b82f6 0%, #f59e0b 55%, #ef4444 100%);
+      transition: width 0.18s ease-out;
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.92rem;
+      margin-top: 6px;
+    }
+    .btn {
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: white;
+      background: #2563eb;
+      transition: opacity 0.15s;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-vr { background: #7c3aed; }
+    .btn-extinguish { background: #ea580c; width: 100%; margin-bottom: 8px; }
+    .btn-stop { background: #dc2626; width: 100%; }
+    .dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .dpad button {
+      padding: 14px 0;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #262b38;
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+    }
+    .dpad button:active { background: #3b82f6; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span>🐾 Marshall Firefighter — Video &amp; WebXR Server</span>
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <span class="badge"><span id="ws-dot" class="dot"></span> Server WS: <strong id="ws-status">Connecting</strong></span>
+      <span class="badge"><span id="cam-dot" class="dot"></span> Camera WiFi: <strong id="cam-status">Offline</strong></span>
+      <span class="badge"><span id="sensor-dot" class="dot"></span> Heat sensor: <strong id="sensor-status">No data</strong></span>
+      <span class="badge">Stream FPS: <strong id="fps-val">0.0</strong></span>
+      <span class="badge">🐾 Dog Gait: <strong id="header-gait-val" style="color: #60a5fa;">Balance [kbalance]</strong></span>
+      <span class="badge">Battery: <strong id="bat-val">7.6 V</strong></span>
+      <span class="badge">Water: <strong id="water-val">100%</strong></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="video-card">
+      <div class="video-wrapper">
+        <!-- Live 2D MJPEG stream from /stream -->
+        <img id="mjpeg-view" src="/stream" alt="Marshall Live Camera Stream" crossorigin="anonymous" />
+      </div>
+
+      <div class="vr-bar">
+        <div>
+          <strong>Meta Quest 2 / WebXR 3D Video View</strong>
+          <div id="xr-hint" style="font-size: 0.82rem; color: var(--muted);">
+            Streams live camera frames onto a 3D HUD screen in VR (requires HTTPS on Quest 2).
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <label style="font-size: 0.85rem; display: flex; align-items: center; gap: 5px; cursor: pointer;">
+            <input type="checkbox" id="hud-lock-toggle" /> Head-locked HUD
+          </label>
+          <button id="enter-vr-btn" class="btn btn-vr">Enter VR</button>
+        </div>
+      </div>
+
+      <!-- Three.js WebGL / WebXR canvas preview -->
+      <div id="vr-canvas-container"></div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="card">
+        <h2>🔥 Fire Detection Meter (MLX90614)</h2>
+        <div class="meter-track">
+          <div id="fire-meter-fill" class="meter-fill"></div>
+        </div>
+        <div class="stat-row">
+          <span>Fire Level:</span>
+          <strong id="fire-level-val">0 / 100</strong>
+        </div>
+        <div class="stat-row">
+          <span>Object Temp:</span>
+          <strong id="temp-obj-val">-- °C</strong>
+        </div>
+        <div class="stat-row">
+          <span>Ambient Temp:</span>
+          <strong id="temp-amb-val">-- °C</strong>
+        </div>
+        <div class="stat-row">
+          <span>State:</span>
+          <strong id="fire-state-val">Searching...</strong>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🕹️ Manual Drive (`drive` message)</h2>
+        <div class="dpad">
+          <div></div>
+          <button data-x="0" data-y="1">▲ Fwd</button>
+          <div></div>
+          <button data-x="-1" data-y="0">◀ Left</button>
+          <button data-x="0" data-y="0">■ Stop</button>
+          <button data-x="1" data-y="0">Right ▶</button>
+          <div></div>
+          <button data-x="0" data-y="-1">▼ Back</button>
+          <div></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px;">
+          <button class="btn" id="btn-sit" style="background: #374151; font-size: 0.85rem; padding: 8px;">🪑 Sit / Stand</button>
+          <button class="btn" id="btn-pee" style="background: #0284c7; font-size: 0.85rem; padding: 8px;">💦 Pee Pose (kpee)</button>
+          <button class="btn" id="btn-hi" style="background: #374151; font-size: 0.85rem; padding: 8px;">👋 Wave (khi)</button>
+          <button class="btn" id="btn-balance" style="background: #374151; font-size: 0.85rem; padding: 8px;">🟢 Balance</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>🎮 VR Controller Inputs (Quest 2)</h2>
+        <canvas id="input-canvas" style="width: 100%; height: auto; border-radius: 8px;"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>🚒 Extinguish &amp; Safety</h2>
+        <button id="btn-extinguish" class="btn btn-extinguish">💦 Start Extinguish</button>
+        <button id="btn-stop" class="btn btn-stop">🛑 EMERGENCY STOP</button>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module">
+    import * as THREE from 'https://unpkg.com/three@0.168.0/build/three.module.js';
+
+    // --- DOM Elements ---
+    const wsDot = document.getElementById('ws-dot');
+    const wsStatus = document.getElementById('ws-status');
+    const camDot = document.getElementById('cam-dot');
+    const camStatus = document.getElementById('cam-status');
+    const sensorDot = document.getElementById('sensor-dot');
+    const sensorStatus = document.getElementById('sensor-status');
+    const fpsVal = document.getElementById('fps-val');
+    const batVal = document.getElementById('bat-val');
+    const waterVal = document.getElementById('water-val');
+    const fireMeterFill = document.getElementById('fire-meter-fill');
+    const fireLevelVal = document.getElementById('fire-level-val');
+    const tempObjVal = document.getElementById('temp-obj-val');
+    const tempAmbVal = document.getElementById('temp-amb-val');
+    const fireStateVal = document.getElementById('fire-state-val');
+    const mjpegView = document.getElementById('mjpeg-view');
+    const enterVrBtn = document.getElementById('enter-vr-btn');
+    const xrHint = document.getElementById('xr-hint');
+    const hudLockToggle = document.getElementById('hud-lock-toggle');
+
+    // --- Three.js + WebXR Setup for VR Streaming ---
+    const container = document.getElementById('vr-canvas-container');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0e14);
+
+    const camera = new THREE.PerspectiveCamera(70, container.clientWidth / container.clientHeight, 0.1, 50);
+    camera.position.set(0, 1.6, 0);
+    scene.add(camera);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.xr.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    // Subtle floor grid in VR so the user has spatial reference
+    const grid = new THREE.GridHelper(10, 20, 0x3b82f6, 0x1e293b);
+    scene.add(grid);
+
+    // Offscreen 2D canvas that receives the live camera stream + HUD bar for the VR screen texture
+    const texCanvas = document.createElement('canvas');
+    texCanvas.width = 640;
+    texCanvas.height = 480;
+    const texCtx = texCanvas.getContext('2d');
+
+    texCtx.fillStyle = '#181820';
+    texCtx.fillRect(0, 0, 640, 480);
+    texCtx.fillStyle = '#ffffff';
+    texCtx.font = '24px sans-serif';
+    texCtx.fillText('Connecting to Marshall Camera Stream...', 95, 240);
+
+    const videoTexture = new THREE.CanvasTexture(texCanvas);
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
+    videoTexture.minFilter = THREE.LinearFilter;
+    videoTexture.magFilter = THREE.LinearFilter;
+
+    // HUD group: video screen + controller input panel. Moves together (world-space or head-locked).
+    const hudGroup = new THREE.Group();
+    hudGroup.position.set(0, 1.6, -2.2);
+    scene.add(hudGroup);
+
+    // 4:3 cinema plane in front of the user (2.4m wide, 1.8m tall, 2.2m away)
+    const screenGeo = new THREE.PlaneGeometry(2.4, 1.8);
+    const screenMat = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
+    const screenMesh = new THREE.Mesh(screenGeo, screenMat);
+    hudGroup.add(screenMesh);
+
+    // --- Controller input panel (Meta Quest 2 Touch controllers) ---
+    // The same canvas is shown on the 3D panel in VR and in the sidebar on the 2D page.
+    const inputCanvas = document.getElementById('input-canvas');
+    inputCanvas.width = 1024;
+    inputCanvas.height = 440;
+    const inputCtx = inputCanvas.getContext('2d');
+    const inputTexture = new THREE.CanvasTexture(inputCanvas);
+    inputTexture.colorSpace = THREE.SRGBColorSpace;
+    inputTexture.minFilter = THREE.LinearFilter;
+
+    const inputPanel = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.0, 2.0 * (440 / 1024)),
+      new THREE.MeshBasicMaterial({ map: inputTexture, side: THREE.DoubleSide, transparent: true })
+    );
+    inputPanel.position.set(0, -1.35, 0.45);
+    inputPanel.rotation.x = -0.3; // tilt up toward the user's eyes
+    hudGroup.add(inputPanel);
+
+    // Toggle between world-space HUD and head-locked HUD
+    hudLockToggle.addEventListener('change', () => {
+      if (hudLockToggle.checked) {
+        scene.remove(hudGroup);
+        camera.add(hudGroup);
+        hudGroup.position.set(0, 0, -2.2);
+      } else {
+        camera.remove(hudGroup);
+        scene.add(hudGroup);
+        hudGroup.position.set(0, 1.6, -2.2);
+      }
+    });
+
+    // xr-standard gamepad mapping used by Quest 2 Touch controllers:
+    //   buttons[0] trigger, [1] grip (squeeze), [3] thumbstick click, [4] A (right) / X (left), [5] B (right) / Y (left)
+    //   axes[2], axes[3] = thumbstick x, y (up is negative y)
+    const emptyBtn = { pressed: false, touched: false, value: 0 };
+    function readController(source) {
+      const gp = source.gamepad;
+      if (!gp) return null;
+      const btn = (i) => gp.buttons[i] || emptyBtn;
+      return {
+        trigger: btn(0),
+        grip: btn(1),
+        stick: {
+          x: gp.axes[2] || 0,
+          y: gp.axes[3] || 0,
+          pressed: btn(3).pressed,
+          touched: btn(3).touched,
+        },
+        lower: btn(4), // A or X
+        upper: btn(5), // B or Y
+      };
+    }
+
+    function readControllers() {
+      const result = { left: null, right: null };
+      const session = renderer.xr.getSession();
+      if (!session) return result;
+      for (const source of session.inputSources) {
+        if (source.handedness === 'left' || source.handedness === 'right') {
+          result[source.handedness] = readController(source);
+        }
+      }
+      return result;
+    }
+
+    function drawBar(ctx, x, y, w, h, value, label, pressed) {
+      ctx.fillStyle = '#1b1f2a';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = pressed ? '#22c55e' : '#3b82f6';
+      ctx.fillRect(x, y, Math.round(w * Math.min(1, Math.max(0, value))), h);
+      ctx.strokeStyle = '#3a4152';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, w, h);
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`${label}  ${Math.round(value * 100)}%`, x, y - 8);
+    }
+
+    function drawButton(ctx, cx, cy, label, b) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, 30, 0, Math.PI * 2);
+      ctx.fillStyle = b.pressed ? '#22c55e' : '#1b1f2a';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = b.pressed ? '#bbf7d0' : b.touched ? '#f59e0b' : '#3a4152';
+      ctx.stroke();
+      ctx.fillStyle = b.pressed ? '#052e16' : '#e5e7eb';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, cx, cy + 8);
+    }
+
+    function drawController(ctx, ox, title, c, labels, pressedNames) {
+      ctx.textAlign = 'left';
+      ctx.fillStyle = c ? '#f3f4f6' : '#6b7280';
+      ctx.font = 'bold 28px sans-serif';
+      ctx.fillText(c ? title : `${title} - not detected`, ox + 24, 44);
+      if (!c) return;
+
+      // Thumbstick
+      const sx = ox + 120, sy = 170, sr = 62;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fillStyle = '#1b1f2a';
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = c.stick.touched ? '#f59e0b' : '#3a4152';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(sx - sr, sy); ctx.lineTo(sx + sr, sy);
+      ctx.moveTo(sx, sy - sr); ctx.lineTo(sx, sy + sr);
+      ctx.strokeStyle = '#2a3040';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(sx + c.stick.x * (sr - 18), sy + c.stick.y * (sr - 18), 18, 0, Math.PI * 2);
+      ctx.fillStyle = c.stick.pressed ? '#22c55e' : '#60a5fa';
+      ctx.fill();
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = '18px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Stick x ${c.stick.x.toFixed(2)}  y ${(-c.stick.y).toFixed(2)}`, sx, sy + sr + 30);
+
+      // Analog trigger and grip
+      drawBar(ctx, ox + 240, 110, 240, 26, c.trigger.value, 'Trigger', c.trigger.pressed);
+      drawBar(ctx, ox + 240, 180, 240, 26, c.grip.value, 'Grip', c.grip.pressed);
+
+      // Face buttons
+      drawButton(ctx, ox + 290, 280, labels[0], c.lower);
+      drawButton(ctx, ox + 400, 280, labels[1], c.upper);
+
+      if (c.trigger.pressed) pressedNames.push(`${title[0]}-Trigger`);
+      if (c.grip.pressed) pressedNames.push(`${title[0]}-Grip`);
+      if (c.stick.pressed) pressedNames.push(`${title[0]}-Stick click`);
+      if (c.lower.pressed) pressedNames.push(`${title[0]}-${labels[0]}`);
+      if (c.upper.pressed) pressedNames.push(`${title[0]}-${labels[1]}`);
+    }
+
+    function drawInputPanel(controllers) {
+      const ctx = inputCtx;
+      ctx.clearRect(0, 0, 1024, 400);
+      ctx.fillStyle = 'rgba(12, 15, 22, 0.92)';
+      ctx.fillRect(0, 0, 1024, 400);
+      ctx.strokeStyle = '#3a4152';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, 1020, 396);
+      ctx.beginPath();
+      ctx.moveTo(512, 20); ctx.lineTo(512, 330);
+      ctx.strokeStyle = '#2a3040';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const pressedNames = [];
+      drawController(ctx, 0, 'LEFT', controllers.left, ['X', 'Y'], pressedNames);
+      drawController(ctx, 512, 'RIGHT', controllers.right, ['A', 'B'], pressedNames);
+
+      ctx.textAlign = 'center';
+
+      // Live Dog Gait Banner
+      ctx.fillStyle = '#1e2433';
+      ctx.fillRect(20, 335, 984, 52);
+      ctx.strokeStyle = currentGaitCode === 'kbalance' ? '#3b82f6' : '#22c55e';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(20, 335, 984, 52);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 24px sans-serif';
+      ctx.fillText(`🐾 MARSHALL GAIT: ${currentGaitName.toUpperCase()} [${currentGaitCode}]${currentTurbo ? ' 💨 TURBO TROT' : ''}`, 512, 370);
+
+      // Controller cheat-sheet footer
+      ctx.font = '17px sans-serif';
+      ctx.fillStyle = '#94a3b8';
+      ctx.fillText('🕹️ Stick: Walk & Steer  |  ✊ Grip: Turbo Trot  |  🅰️ Sit/Stand  |  🅱️ Pee Pose  |  🔫 Trigger: Extinguish  |  🇾 Stop', 512, 420);
+
+      inputTexture.needsUpdate = true;
+    }
+
+    drawInputPanel({ left: null, right: null });
+
+    // Update Three.js texture either from binary WebSocket JPEG frames or from the <img> element
+    let latestFireLevel = 0;
+    let latestObjTemp = 22.5;
+    let decodingBitmap = false;
+
+    // Current robot gait state
+    let currentGaitCode = 'kbalance';
+    let currentGaitName = 'Balance (Stop)';
+    let currentTurbo = false;
+
+    // VR controller driving and button edge detection state
+    let lastDriveSendTime = 0;
+    let lastSentX = 0;
+    let lastSentY = 0;
+    let lastSentTurbo = false;
+    const prevButtons = {
+      rightA: false,
+      rightB: false,
+      rightTrigger: false,
+      leftX: false,
+      leftY: false,
+      leftTrigger: false,
+    };
+
+    function handleVrDriving(controllers) {
+      if (!currentXrSession) return;
+      const now = performance.now();
+      const left = controllers.left;
+      const right = controllers.right;
+
+      // Pick active thumbstick (right controller preferred, fallback to left)
+      let stick = null;
+      if (right && (Math.abs(right.stick.x) > 0.08 || Math.abs(right.stick.y) > 0.08)) {
+        stick = right.stick;
+      } else if (left && (Math.abs(left.stick.x) > 0.08 || Math.abs(left.stick.y) > 0.08)) {
+        stick = left.stick;
+      }
+
+      // Turbo / Trot mode: engaged when squeezing grip on either controller
+      const turbo = (left && (left.grip.pressed || left.grip.value > 0.4)) ||
+                    (right && (right.grip.pressed || right.grip.value > 0.4));
+
+      let x = 0;
+      let y = 0;
+      if (stick) {
+        x = stick.x;
+        y = -stick.y; // Invert WebXR stick Y so forward is positive
+      }
+
+      // Deadzone filter
+      if (Math.hypot(x, y) < 0.16) {
+        x = 0;
+        y = 0;
+      }
+
+      const isStopped = (x === 0 && y === 0);
+      const wasMoving = (lastSentX !== 0 || lastSentY !== 0);
+
+      // Send drive updates at 10 Hz (every 100ms) or immediately on state changes
+      if (isStopped && wasMoving) {
+        sendJson({ type: 'drive', x: 0, y: 0, turbo: false });
+        lastSentX = 0;
+        lastSentY = 0;
+        lastSentTurbo = false;
+        lastDriveSendTime = now;
+      } else if (!isStopped && (now - lastDriveSendTime >= 100 || Math.abs(x - lastSentX) > 0.18 || Math.abs(y - lastSentY) > 0.18 || turbo !== lastSentTurbo)) {
+        sendJson({ type: 'drive', x: Number(x.toFixed(2)), y: Number(y.toFixed(2)), turbo });
+        lastSentX = x;
+        lastSentY = y;
+        lastSentTurbo = turbo;
+        lastDriveSendTime = now;
+      }
+
+      // Button press edge detection (triggers on down)
+      if (right) {
+        if (right.lower.pressed && !prevButtons.rightA) {
+          sendJson({ type: 'action', command: 'toggle_sit' });
+        }
+        prevButtons.rightA = right.lower.pressed;
+
+        if (right.upper.pressed && !prevButtons.rightB) {
+          sendJson({ type: 'action', command: 'kpee' });
+        }
+        prevButtons.rightB = right.upper.pressed;
+
+        if (right.trigger.pressed && !prevButtons.rightTrigger) {
+          sendJson({ type: 'extinguish' });
+        }
+        prevButtons.rightTrigger = right.trigger.pressed;
+      }
+
+      if (left) {
+        if (left.lower.pressed && !prevButtons.leftX) {
+          sendJson({ type: 'action', command: 'khi' });
+        }
+        prevButtons.leftX = left.lower.pressed;
+
+        if (left.upper.pressed && !prevButtons.leftY) {
+          sendJson({ type: 'stop' });
+        }
+        prevButtons.leftY = left.upper.pressed;
+
+        if (left.trigger.pressed && !prevButtons.leftTrigger) {
+          sendJson({ type: 'extinguish' });
+        }
+        prevButtons.leftTrigger = left.trigger.pressed;
+      }
+    }
+
+    function drawHudOverlayOnTexture() {
+      // Draw a compact thermal fire meter bar at the bottom of the VR video screen
+      const barW = 240;
+      const barH = 14;
+      const x = 640 - barW - 16;
+      const y = 480 - barH - 16;
+      texCtx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      texCtx.fillRect(x - 6, y - 22, barW + 12, barH + 28);
+      texCtx.fillStyle = '#ffffff';
+      texCtx.font = 'bold 13px sans-serif';
+      texCtx.fillText(`FIRE METER: ${latestFireLevel}% (${latestObjTemp.toFixed(1)}°C)`, x, y - 6);
+      texCtx.fillStyle = '#222';
+      texCtx.fillRect(x, y, barW, barH);
+      texCtx.fillStyle = latestFireLevel >= 45 ? '#ef4444' : '#f59e0b';
+      texCtx.fillRect(x, y, Math.round((barW * latestFireLevel) / 100), barH);
+    }
+
+    async function handleBinaryFrame(blob) {
+      if (decodingBitmap) return;
+      decodingBitmap = true;
+      try {
+        const bmp = await createImageBitmap(blob);
+        texCtx.drawImage(bmp, 0, 0, texCanvas.width, texCanvas.height);
+        bmp.close();
+        drawHudOverlayOnTexture();
+        videoTexture.needsUpdate = true;
+      } catch (_) {
+        // Ignore corrupted frame
+      } finally {
+        decodingBitmap = false;
+      }
+    }
+
+    // Fallback: also copy from the 2D <img> element if not using binary WS frames
+    renderer.setAnimationLoop(() => {
+      if (!decodingBitmap && mjpegView.complete && mjpegView.naturalWidth > 0) {
+        try {
+          texCtx.drawImage(mjpegView, 0, 0, texCanvas.width, texCanvas.height);
+          drawHudOverlayOnTexture();
+          videoTexture.needsUpdate = true;
+        } catch (_) {}
+      }
+      const currentControllers = readControllers();
+      handleVrDriving(currentControllers);
+      drawInputPanel(currentControllers);
+      renderer.render(scene, camera);
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    });
+
+    // --- WebXR Session Handling for Meta Quest 2 ---
+    let currentXrSession = null;
+    if ('xr' in navigator) {
+      navigator.xr.isSessionSupported('immersive-vr').then((supported) => {
+        if (supported) {
+          xrHint.textContent = 'WebXR immersive-vr ready! Click "Enter VR" on your Meta Quest 2.';
+        } else {
+          xrHint.textContent = 'WebXR detected, but immersive-vr headset not active on this device (3D preview shown below).';
+        }
+      }).catch(() => {
+        xrHint.textContent = 'Note: WebXR requires HTTPS when accessed over LAN on Meta Quest 2.';
+      });
+    } else {
+      xrHint.textContent = 'WebXR unavailable in this browser (use HTTPS on Meta Quest Browser for VR). 3D preview active below.';
+    }
+
+    enterVrBtn.addEventListener('click', async () => {
+      if (!('xr' in navigator)) {
+        alert('WebXR is not available. Make sure you open https://<laptop-ip>:8443 on the Meta Quest 2 browser.');
+        return;
+      }
+      try {
+        if (currentXrSession === null) {
+          const session = await navigator.xr.requestSession('immersive-vr', {
+            optionalFeatures: ['local-floor', 'bounded-floor', 'hand-tracking']
+          });
+          renderer.xr.setReferenceSpaceType('local-floor');
+          await renderer.xr.setSession(session);
+          currentXrSession = session;
+          enterVrBtn.textContent = 'Exit VR';
+          session.addEventListener('end', () => {
+            currentXrSession = null;
+            enterVrBtn.textContent = 'Enter VR';
+          });
+        } else {
+          await currentXrSession.end();
+        }
+      } catch (err) {
+        alert('Could not start WebXR session: ' + err.message);
+      }
+    });
+
+    // --- WebSocket Connection (`/ws` per docs/interfaces.md) ---
+    let ws = null;
+    function connectWs() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${location.host}/ws`);
+      ws.binaryType = 'blob';
+
+      ws.onopen = () => {
+        wsDot.classList.add('online');
+        wsStatus.textContent = 'Connected';
+        // Subscribe to binary frames so VR canvas updates smoothly even inside immersive WebXR
+        ws.send(JSON.stringify({ type: 'subscribe_frames', enabled: true }));
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof Blob) {
+          handleBinaryFrame(event.data);
+          return;
+        }
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'robot_gait') {
+            currentGaitCode = msg.gait || 'kbalance';
+            currentGaitName = msg.name || 'Balance';
+            currentTurbo = Boolean(msg.turbo);
+            const badge = document.getElementById('header-gait-val');
+            if (badge) badge.textContent = `${currentGaitName} [${currentGaitCode}]`;
+          } else if (msg.type === 'status') {
+            if (msg.gait) {
+              currentGaitCode = msg.gait;
+              currentGaitName = msg.gait_name || msg.gait;
+              const badge = document.getElementById('header-gait-val');
+              if (badge) badge.textContent = `${currentGaitName} [${currentGaitCode}]`;
+            }
+            batVal.textContent = `${Number(msg.battery).toFixed(2)} V`;
+            waterVal.textContent = `${msg.water}%`;
+            if (msg.fps !== undefined) {
+              fpsVal.textContent = Number(msg.fps).toFixed(1);
+            }
+            const camOk = msg.connected && msg.connected.camera;
+            camDot.classList.toggle('online', Boolean(camOk));
+            camStatus.textContent = camOk ? 'Streaming' : 'Offline';
+          } else if (msg.type === 'fire') {
+            const src = msg.source || 'none';
+            sensorDot.classList.toggle('online', src === 'sensor');
+            sensorStatus.textContent = src === 'sensor' ? 'LIVE (MLX90614)' : src === 'sim' ? 'Simulated' : 'No data';
+            latestFireLevel = msg.level;
+            latestObjTemp = msg.temperature;
+            fireMeterFill.style.width = `${msg.level}%`;
+            fireLevelVal.textContent = `${msg.level} / 100`;
+            tempObjVal.textContent = `${Number(msg.temperature).toFixed(1)} °C`;
+            tempAmbVal.textContent = `${Number(msg.ambient).toFixed(1)} °C`;
+            if (msg.detected) {
+              fireStateVal.textContent = '🔥 FIRE DETECTED!';
+              fireStateVal.style.color = '#ef4444';
+            } else {
+              fireStateVal.textContent = 'Scanning (Warm/Cold)';
+              fireStateVal.style.color = '#f3f4f6';
+            }
+          } else if (msg.type === 'extinguish_state') {
+            fireStateVal.textContent = `Extinguishing: ${msg.state}`;
+          } else if (msg.type === 'fire_out') {
+            fireStateVal.textContent = '🐾 Woof! Fire is OUT!';
+            fireStateVal.style.color = '#22c55e';
+          }
+        } catch (err) {
+          console.error('Invalid WS message', err);
+        }
+      };
+
+      ws.onclose = () => {
+        wsDot.classList.remove('online');
+        wsStatus.textContent = 'Reconnecting...';
+        setTimeout(connectWs, 1500);
+      };
+    }
+    connectWs();
+
+    function sendJson(payload) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      }
+    }
+
+    // D-pad drive controls
+    document.querySelectorAll('.dpad button').forEach((btn) => {
+      const x = parseFloat(btn.dataset.x);
+      const y = parseFloat(btn.dataset.y);
+      btn.addEventListener('pointerdown', () => sendJson({ type: 'drive', x, y }));
+      // TODO (safety): also stop on pointerleave/pointercancel, otherwise the robot keeps walking.
+      btn.addEventListener('pointerup', () => sendJson({ type: 'drive', x: 0, y: 0 }));
+    });
+
+    document.getElementById('btn-extinguish').addEventListener('click', () => {
+      sendJson({ type: 'extinguish' });
+    });
+
+    document.getElementById('btn-stop').addEventListener('click', () => {
+      sendJson({ type: 'stop' });
+    });
+
+    document.getElementById('btn-sit').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'toggle_sit' });
+    });
+
+    document.getElementById('btn-pee').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'kpee' });
+    });
+
+    document.getElementById('btn-hi').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'khi' });
+    });
+
+    document.getElementById('btn-balance').addEventListener('click', () => {
+      sendJson({ type: 'action', command: 'kbalance' });
+    });
+  </script>
+</body>
+</html>
