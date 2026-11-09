@@ -37,7 +37,7 @@ Elk bericht is één JSON-object met een veld `type`.
 | `type` | Velden | Betekenis |
 |---|---|---|
 | `status` | `battery` (V), `water` (0–100 %), `connected` (`{ "biboard": bool, "camera": bool }`) | Elke seconde. |
-| `fire` | `detected` (bool), `level` (0–100), `temperature` (°C), `ambient` (°C) | Resultaat van de warmtesensor, minstens 2 keer per seconde. `level` stuurt de branddetectiemeter: hoe hoger de temperatuur, hoe hoger `level`. `detected` is `true` als `level` boven de drempel ligt. |
+| `fire` | `detected` (bool), `level` (0–100), `temperature` (°C), `ambient` (°C), `source` (optioneel: `sensor`, `sim` of `none`) | Resultaat van de warmtesensor, minstens 2 keer per seconde. `level` stuurt de branddetectiemeter: hoe hoger de temperatuur, hoe hoger `level`. `detected` is `true` als `level` boven de drempel ligt. `source` zegt waar de waarde vandaan komt: `sensor` is de echte MLX90614, `sim` de camerasimulator, `none` nog geen meting. |
 | `extinguish_state` | `state`: `searching`, `positioning`, `spraying`, `done`, `failed` | Voortgang van de blusroutine. |
 | `fire_out` | — | Het vuur is uit: de app speelt het blafgeluid en toont een melding. |
 
@@ -66,6 +66,14 @@ Nog te beslissen: of de blusroutine een eigen firmware-commando wordt, of een re
 - De XIAO serveert een MJPEG-stream over HTTP.
 - De MLX90614 geeft twee waarden: `temperature` (wat de sensor ziet) en `ambient` (de temperatuur van de sensor zelf), allebei in °C.
 - Het bord met de sensor biedt die twee waarden aan; de server rekent `level` uit. Op welk bord de sensor komt, is nog te beslissen.
+
+### Warmtesensor naar server (proefopstelling)
+
+Voor de test hangt de MLX90614 aan het BiBoard (Grove I2C-poort). Dit beslist niet op welk bord de sensor definitief komt (zie `docs/beslissingen.md`).
+
+- Het BiBoard stuurt de metingen met een HTTP-`POST` naar `http://<laptop-ip>:8000/api/sensor`, ongeveer 4 keer per seconde.
+- Body: `{ "temperature": 48.6, "ambient": 23.4 }`, beide in °C. De server antwoordt `{ "ok": true, "level": 72 }`, of `400` bij ongeldige of onmogelijke waarden.
+- Zolang de server in de laatste 3 seconden echte metingen kreeg, negeert hij de nagebootste waarden van de camerasimulator.
 
 ### Branddetectiemeter (`level`)
 

@@ -45,3 +45,12 @@ certs/
 /skills/
 .agents/
 .gemini/
+
+# Dog WiFi settings (never commit)
+secrets.h
+
+# Downloaded demo video for the camera simulator
+software/camera_sim/video.mp4
+
+# Full flash backups of the dog (large, local only)
+software/firmware/backups/
